@@ -7,7 +7,7 @@ A simple Python script that automatically changes your Instagram profile picture
 ## Features
 - Logs in using `instagrapi`
 - Rotates between multiple profile pictures
-- Uses a random delay between changes
+- Uses a random delay between changes (1hr delay recommended)
 
 ## Requirements
 - Python 3.x
