@@ -23,7 +23,7 @@ def login_user():
     return cl
 
 def change_profile_pic(cl):
-    images = [f"{i}.png" for i in range(1, 9)]
+    images = [f"{i}.png" for i in range(1, 12)]
     if not hasattr(change_profile_pic, "current_index"):
         change_profile_pic.current_index = 0
     image_path = os.path.join(IMAGE_FOLDER, images[change_profile_pic.current_index])
