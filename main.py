@@ -27,7 +27,14 @@ def change_profile_pic(cl):
     if not hasattr(change_profile_pic, "current_index"):
         change_profile_pic.current_index = 0
     image_path = os.path.join(IMAGE_FOLDER, images[change_profile_pic.current_index])
-    cl.account_change_picture(image_path)
+    while True:
+        try:
+            cl.account_change_picture(image_path)
+            break
+        except Exception as e:
+            print(f"Error encountered while changing profile picture: {e}")
+            print("Waiting for 1 hours before retrying...")
+            time.sleep(3600)
     change_profile_pic.current_index = (change_profile_pic.current_index + 1) % len(images)
 
 if __name__ == "__main__":
