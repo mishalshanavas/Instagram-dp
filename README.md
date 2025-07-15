@@ -99,6 +99,4 @@ This script is intended for educational and personal use only. Automated interac
 
 ---
 
-## License
 
-This project is licensed under the [MIT License](LICENSE).
