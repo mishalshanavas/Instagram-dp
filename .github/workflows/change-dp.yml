@@ -1,0 +1,34 @@
+name: Change Instagram DP
+
+on:
+  schedule:
+    - cron: "0 * * * *"   # every hour
+  workflow_dispatch:       # allow manual run from GitHub UI
+
+jobs:
+  change-dp:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        run: pip install -r serverless/requirements.txt
+
+      - name: Run script
+        env:
+          USERNAME: ${{ secrets.INSTA_USER }}
+          PASSWORD: ${{ secrets.INSTA_PASS }}
+        run: python serverless/main.py
+
+      - name: Commit updated index + session
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@users.noreply.github.com"
+          git add serverless/index.txt serverless/session.json
+          git commit -m "Update index + session [skip ci]" || echo "No changes"
+          git push
