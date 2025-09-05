@@ -15,6 +15,8 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # ✅ full history so rebase works
 
       - name: Set up Python
         uses: actions/setup-python@v5
