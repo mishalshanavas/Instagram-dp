@@ -2,7 +2,8 @@ name: Update Instagram DP
 
 on:
   schedule:
-    - cron: "0 */2 * * *" # every 2 hours
+    # Run at 6:30 AM, 8:30 AM, 10:30 AM IST (1:00, 3:00, 5:00 UTC)
+    - cron: "0 1,3,5 * * *"
   workflow_dispatch:
 
 permissions:
@@ -16,24 +17,96 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0   # ✅ full history
+          fetch-depth: 0
+          
+      - name: Check if should run (IST time check)
+        id: time_check
+        run: |
+          # Get current time in IST
+          current_hour=$(TZ='Asia/Kolkata' date +%H)
+          current_minute=$(TZ='Asia/Kolkata' date +%M)
+          
+          echo "Current IST time: $(TZ='Asia/Kolkata' date)"
+          echo "Current hour: $current_hour"
+          
+          # Only run between 6:30 AM and 11:30 PM IST
+          if [ "$current_hour" -ge 6 ] && [ "$current_hour" -lt 23 ]; then
+            # If it's 6 AM, make sure it's at least 6:30
+            if [ "$current_hour" -eq 6 ] && [ "$current_minute" -lt 30 ]; then
+              echo "should_run=false" >> $GITHUB_OUTPUT
+              echo "Too early (before 6:30 AM IST)"
+            # If it's 11 PM, make sure it's before 11:30
+            elif [ "$current_hour" -eq 23 ] && [ "$current_minute" -ge 30 ]; then
+              echo "should_run=false" >> $GITHUB_OUTPUT  
+              echo "Too late (after 11:30 PM IST)"
+            else
+              echo "should_run=true" >> $GITHUB_OUTPUT
+              echo "Within allowed time window"
+            fi
+          else
+            echo "should_run=false" >> $GITHUB_OUTPUT
+            echo "Outside allowed hours (6:30 AM - 11:30 PM IST)"
+          fi
+
+      - name: Check rate limit (last run)
+        id: rate_check
+        if: steps.time_check.outputs.should_run == 'true'
+        run: |
+          # Check if we have a rate limit file
+          if [ -f "serverless/last_run.txt" ]; then
+            last_run=$(cat serverless/last_run.txt)
+            current_time=$(date +%s)
+            
+            # Calculate time difference (minimum 3 hours = 10800 seconds)
+            time_diff=$((current_time - last_run))
+            min_interval=10800  # 3 hours in seconds
+            
+            echo "Last run: $last_run"
+            echo "Current time: $current_time" 
+            echo "Time difference: $time_diff seconds"
+            echo "Minimum interval: $min_interval seconds"
+            
+            if [ "$time_diff" -lt "$min_interval" ]; then
+              remaining=$((min_interval - time_diff))
+              hours=$((remaining / 3600))
+              minutes=$(((remaining % 3600) / 60))
+              echo "Rate limit active. Wait ${hours}h ${minutes}m before next update"
+              echo "can_run=false" >> $GITHUB_OUTPUT
+            else
+              echo "Rate limit passed. Can proceed with update"
+              echo "can_run=true" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "No previous run recorded. Can proceed"
+            echo "can_run=true" >> $GITHUB_OUTPUT
+          fi
 
       - name: Set up Python
+        if: steps.time_check.outputs.should_run == 'true' && steps.rate_check.outputs.can_run == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
 
       - name: Install dependencies
+        if: steps.time_check.outputs.should_run == 'true' && steps.rate_check.outputs.can_run == 'true'
         run: |
           pip install -r serverless/requirements.txt
 
       - name: Run main script
+        if: steps.time_check.outputs.should_run == 'true' && steps.rate_check.outputs.can_run == 'true'
         env:
           USERNAME: ${{ secrets.INSTA_USER }}
           PASSWORD: ${{ secrets.INSTA_PASS }}
-        run: python serverless/main.py
+        run: |
+          echo "Starting Instagram DP update..."
+          python serverless/main.py
+          
+          # Record successful run timestamp
+          echo $(date +%s) > serverless/last_run.txt
+          echo "Update completed at $(TZ='Asia/Kolkata' date)"
 
       - name: Commit & Push changes
+        if: steps.time_check.outputs.should_run == 'true' && steps.rate_check.outputs.can_run == 'true'
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
@@ -41,8 +114,16 @@ jobs:
           # Make sure we're up to date *before* committing
           git pull --rebase origin main || echo "Nothing to rebase"
 
-          git add serverless/index.txt serverless/session.json
-          git commit -m "Update index + session [skip ci]" || echo "No changes to commit"
+          # Add all tracked files including the new last_run.txt
+          git add serverless/index.txt serverless/session.json serverless/last_run.txt
+          git commit -m "Update DP & tracking files [$(TZ='Asia/Kolkata' date '+%Y-%m-%d %H:%M IST')] [skip ci]" || echo "No changes to commit"
 
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
           git push origin HEAD:main
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "Current IST: $(TZ='Asia/Kolkata' date)"
+          echo "Time check: ${{ steps.time_check.outputs.should_run }}"
+          echo "Rate check: ${{ steps.rate_check.outputs.can_run }}"
