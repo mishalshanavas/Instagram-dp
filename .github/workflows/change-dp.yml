@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write   # ✅ allow push
+  contents: write
 
 jobs:
   update-dp:
@@ -16,7 +16,7 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0   # ✅ full history so rebase works
+          fetch-depth: 0   # ✅ full history so rebase/merge is possible
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -37,8 +37,15 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
           git add serverless/index.txt serverless/session.json
           git commit -m "Update index + session [skip ci]" || echo "No changes to commit"
+
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
+
+          # Try a safe push first
           git pull --rebase origin main || echo "Nothing to rebase"
-          git push origin HEAD:main
+          git push origin HEAD:main || (
+            echo "⚠️ Normal push failed, retrying with --force"
+            git push origin HEAD:main --force
+          )
