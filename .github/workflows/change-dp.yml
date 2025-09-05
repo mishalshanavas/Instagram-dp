@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write   
+  contents: write   # ✅ allow push
 
 jobs:
   update-dp:
@@ -38,4 +38,5 @@ jobs:
           git add serverless/index.txt serverless/session.json
           git commit -m "Update index + session [skip ci]" || echo "No changes to commit"
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
-          git push origin HEAD:${{ github.ref }}
+          git pull --rebase origin main || echo "Nothing to rebase"
+          git push origin HEAD:main
