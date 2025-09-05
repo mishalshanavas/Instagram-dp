@@ -2,8 +2,7 @@ name: Update Instagram DP
 
 on:
   schedule:
-    # Run at 6:30 AM, 8:30 AM, 10:30 AM IST (1:00, 3:00, 5:00 UTC)
-    - cron: "0 1,3,5 * * *"
+    - cron: "0 1,4,7,10,13,16 * * *"
   workflow_dispatch:
 
 permissions:
