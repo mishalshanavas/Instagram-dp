@@ -146,6 +146,15 @@ jobs:
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
           git push origin HEAD:main
 
+      - name: Trigger badge update
+        if: steps.time_check.outputs.should_run == 'true' && steps.rate_check.outputs.can_run == 'true'
+        run: |
+          curl -X POST \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/repos/${{ github.repository }}/actions/workflows/update-badge.yml/dispatches \
+            -d '{"ref":"main"}'
+
       - name: Summary
         if: always()
         run: |
