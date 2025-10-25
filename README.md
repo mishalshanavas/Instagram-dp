@@ -4,7 +4,6 @@
 *demo at 10x speed*
 
 [![Update Instagram DP](https://github.com/mishalshanavas/Instagram-dp/actions/workflows/change-dp.yml/badge.svg)](https://github.com/mishalshanavas/Instagram-dp/actions/workflows/change-dp.yml)
-[![Last DP Change](https://img.shields.io/badge/Last%20DP%20Change-never-red?style=flat-square)](https://github.com/mishalshanavas/Instagram-dp/commits/main)
 
 Tired of manually changing your Instagram profile picture? Let GitHub do it for you. This bot rotates through your images automatically so you can pretend you're more active than you actually are.
 
