@@ -52,8 +52,8 @@ jobs:
         if: steps.time_check.outputs.should_run == 'true'
         run: |
           # Check if we have a rate limit file
-          if [ -f "serverless/last_run.txt" ]; then
-            last_run=$(cat serverless/last_run.txt)
+          if [ -f "data/last_run.txt" ]; then
+            last_run=$(cat data/last_run.txt)
             current_time=$(date +%s)
             
             # Calculate time difference (minimum 3 hours = 10800 seconds)
@@ -89,7 +89,7 @@ jobs:
       - name: Install dependencies
         if: steps.time_check.outputs.should_run == 'true' && steps.rate_check.outputs.can_run == 'true'
         run: |
-          pip install -r serverless/requirements.txt
+          pip install -r requirements.txt
 
       - name: Run main script
         if: steps.time_check.outputs.should_run == 'true' && steps.rate_check.outputs.can_run == 'true'
@@ -98,10 +98,10 @@ jobs:
           PASSWORD: ${{ secrets.INSTA_PASS }}
         run: |
           echo "Starting Instagram DP update..."
-          python serverless/main.py
+          python src/main.py
           
           # Record successful run timestamp
-          echo $(date +%s) > serverless/last_run.txt
+          echo $(date +%s) > data/last_run.txt
           echo "Update completed at $(TZ='Asia/Kolkata' date)"
 
       - name: Commit & Push changes
@@ -114,7 +114,7 @@ jobs:
           git pull --rebase origin main || echo "Nothing to rebase"
 
           # Add all tracked files including the new last_run.txt
-          git add serverless/index.txt serverless/session.json serverless/last_run.txt
+          git add data/index.txt data/session.json data/last_run.txt
           git commit -m "Update DP & tracking files [$(TZ='Asia/Kolkata' date '+%Y-%m-%d %H:%M IST')] [skip ci]" || echo "No changes to commit"
 
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
