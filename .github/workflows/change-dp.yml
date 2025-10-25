@@ -4,6 +4,15 @@ on:
   schedule:
     - cron: "0 1,4,7,10,13,16 * * *"
   workflow_dispatch:
+    inputs:
+      force_run:
+        description: 'Force run (bypass time and rate limits)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
 
 permissions:
   contents: write
@@ -11,6 +20,7 @@ permissions:
 jobs:
   update-dp:
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
 
     steps:
       - name: Checkout repo
@@ -21,11 +31,18 @@ jobs:
       - name: Check if should run (IST time check)
         id: time_check
         run: |
+          # Check if this is a forced run
+          if [ "${{ github.event.inputs.force_run }}" = "true" ]; then
+            echo "FORCE: Manual trigger with force_run=true - bypassing time check"
+            echo "should_run=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
           # Get current time in IST
           current_hour=$(TZ='Asia/Kolkata' date +%H)
           current_minute=$(TZ='Asia/Kolkata' date +%M)
           
-          echo "Current IST time: $(TZ='Asia/Kolkata' date)"
+          echo "Current IST: $(TZ='Asia/Kolkata' date '+%Y-%m-%d %H:%M:%S')"
           echo "Current hour: $current_hour"
           
           # Only run between 6:30 AM and 11:30 PM IST
@@ -33,24 +50,31 @@ jobs:
             # If it's 6 AM, make sure it's at least 6:30
             if [ "$current_hour" -eq 6 ] && [ "$current_minute" -lt 30 ]; then
               echo "should_run=false" >> $GITHUB_OUTPUT
-              echo "Too early (before 6:30 AM IST)"
+              echo "SKIP: Too early - before 6:30 AM IST"
             # If it's 11 PM, make sure it's before 11:30
             elif [ "$current_hour" -eq 23 ] && [ "$current_minute" -ge 30 ]; then
               echo "should_run=false" >> $GITHUB_OUTPUT  
-              echo "Too late (after 11:30 PM IST)"
+              echo "SKIP: Too late - after 11:30 PM IST"
             else
               echo "should_run=true" >> $GITHUB_OUTPUT
-              echo "Within allowed time window"
+              echo "PASS: Within allowed time window (6:30 AM - 11:30 PM IST)"
             fi
           else
             echo "should_run=false" >> $GITHUB_OUTPUT
-            echo "Outside allowed hours (6:30 AM - 11:30 PM IST)"
+            echo "SKIP: Outside allowed hours (6:30 AM - 11:30 PM IST)"
           fi
 
       - name: Check rate limit (last run)
         id: rate_check
         if: steps.time_check.outputs.should_run == 'true'
         run: |
+          # Check if this is a forced run
+          if [ "${{ github.event.inputs.force_run }}" = "true" ]; then
+            echo "FORCE: Manual trigger with force_run=true - bypassing rate limit"
+            echo "can_run=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
           # Check if we have a rate limit file
           if [ -f "data/last_run.txt" ]; then
             last_run=$(cat data/last_run.txt)
@@ -60,23 +84,23 @@ jobs:
             time_diff=$((current_time - last_run))
             min_interval=10800  # 3 hours in seconds
             
-            echo "Last run: $last_run"
-            echo "Current time: $current_time" 
-            echo "Time difference: $time_diff seconds"
-            echo "Minimum interval: $min_interval seconds"
+            echo "Last run timestamp: $last_run"
+            echo "Current timestamp: $current_time" 
+            echo "Time elapsed: $time_diff seconds"
+            echo "Required interval: $min_interval seconds (3 hours)"
             
             if [ "$time_diff" -lt "$min_interval" ]; then
               remaining=$((min_interval - time_diff))
               hours=$((remaining / 3600))
               minutes=$(((remaining % 3600) / 60))
-              echo "Rate limit active. Wait ${hours}h ${minutes}m before next update"
+              echo "SKIP: Rate limit active - wait ${hours}h ${minutes}m before next update"
               echo "can_run=false" >> $GITHUB_OUTPUT
             else
-              echo "Rate limit passed. Can proceed with update"
+              echo "PASS: Rate limit cleared - proceeding with update"
               echo "can_run=true" >> $GITHUB_OUTPUT
             fi
           else
-            echo "No previous run recorded. Can proceed"
+            echo "INFO: No previous run recorded - first execution"
             echo "can_run=true" >> $GITHUB_OUTPUT
           fi
 
@@ -97,12 +121,14 @@ jobs:
           USERNAME: ${{ secrets.INSTA_USER }}
           PASSWORD: ${{ secrets.INSTA_PASS }}
         run: |
-          echo "Starting Instagram DP update..."
+          echo "=== Instagram Profile Picture Update ==="
+          echo "Starting execution at $(TZ='Asia/Kolkata' date '+%Y-%m-%d %H:%M:%S IST')"
           python src/main.py
           
           # Record successful run timestamp
           echo $(date +%s) > data/last_run.txt
-          echo "Update completed at $(TZ='Asia/Kolkata' date)"
+          echo "=== Update completed successfully ==="
+          echo "Completed at $(TZ='Asia/Kolkata' date '+%Y-%m-%d %H:%M:%S IST')"
 
       - name: Commit & Push changes
         if: steps.time_check.outputs.should_run == 'true' && steps.rate_check.outputs.can_run == 'true'
@@ -123,6 +149,11 @@ jobs:
       - name: Summary
         if: always()
         run: |
-          echo "Current IST: $(TZ='Asia/Kolkata' date)"
-          echo "Time check: ${{ steps.time_check.outputs.should_run }}"
-          echo "Rate check: ${{ steps.rate_check.outputs.can_run }}"
+          echo "=== Execution Summary ==="
+          echo "Timestamp: $(TZ='Asia/Kolkata' date '+%Y-%m-%d %H:%M:%S IST')"
+          echo "Trigger type: ${{ github.event_name }}"
+          echo "Force run: ${{ github.event.inputs.force_run || 'false' }}"
+          echo "Time window check: ${{ steps.time_check.outputs.should_run }}"
+          echo "Rate limit check: ${{ steps.rate_check.outputs.can_run }}"
+          echo "Branch: ${{ github.ref }}"
+          echo "=========================="
