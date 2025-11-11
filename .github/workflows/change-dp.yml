@@ -20,14 +20,16 @@ permissions:
 jobs:
   update-dp:
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    # Only run if credentials exist AND we're on main branch
+    if: github.ref == 'refs/heads/main' && vars.WORKFLOW_ENABLED == 'true' && secrets.INSTA_USER != '' && secrets.INSTA_PASS != ''
 
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          
+
+      # Remove the credentials check step since it's now handled at job level
       - name: Check if should run (IST time check)
         id: time_check
         run: |
@@ -146,14 +148,26 @@ jobs:
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
           git push origin HEAD:main
 
-      - name: Summary
-        if: always()
+  # This job always runs to show status when main job is skipped
+  status:
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Show workflow status
         run: |
-          echo "=== Execution Summary ==="
-          echo "Timestamp: $(TZ='Asia/Kolkata' date '+%Y-%m-%d %H:%M:%S IST')"
-          echo "Trigger type: ${{ github.event_name }}"
-          echo "Force run: ${{ github.event.inputs.force_run || 'false' }}"
-          echo "Time window check: ${{ steps.time_check.outputs.should_run }}"
-          echo "Rate limit check: ${{ steps.rate_check.outputs.can_run }}"
+          echo "=== Workflow Status ==="
+          echo "Timestamp: $(date '+%Y-%m-%d %H:%M:%S UTC')"
           echo "Branch: ${{ github.ref }}"
-          echo "=========================="
+          echo "Trigger: ${{ github.event_name }}"
+          
+          # Check conditions
+          if [ "${{ github.ref }}" != "refs/heads/main" ]; then
+            echo "❌ Not on main branch"
+          elif [ "${{ vars.WORKFLOW_ENABLED }}" != "true" ]; then
+            echo "❌ Workflow disabled (WORKFLOW_ENABLED != 'true')"
+          elif [ -z "${{ secrets.INSTA_USER }}" ] || [ -z "${{ secrets.INSTA_PASS }}" ]; then
+            echo "❌ Instagram credentials not configured"
+          else
+            echo "✅ All conditions met - workflow can run"
+          fi
+          echo "======================="
