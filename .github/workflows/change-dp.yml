@@ -50,7 +50,7 @@ jobs:
           echo "Force run: $FORCE_RUN"
           echo ""
           
-              if: github.ref == 'refs/heads/main' && secrets.INSTA_USER != '' && secrets.INSTA_PASS != ''
+          cd src
           python main.py
           
           echo ""
