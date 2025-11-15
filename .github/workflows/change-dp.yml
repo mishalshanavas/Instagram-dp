@@ -21,8 +21,8 @@ permissions:
 jobs:
   update-dp:
     runs-on: ubuntu-latest
-    # Only run if credentials exist AND we're on main branch
-    if: github.ref == 'refs/heads/main' && secrets.INSTA_USER != '' && secrets.INSTA_PASS != ''
+    # Only run on main branch
+    if: github.ref == 'refs/heads/main'
 
     steps:
       - name: Checkout repo
