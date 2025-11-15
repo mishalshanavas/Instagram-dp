@@ -22,7 +22,7 @@ jobs:
   update-dp:
     runs-on: ubuntu-latest
     # Only run if credentials exist AND we're on main branch
-    if: github.ref == 'refs/heads/main' && vars.WORKFLOW_ENABLED == 'true' && secrets.INSTA_USER != '' && secrets.INSTA_PASS != ''
+    if: github.ref == 'refs/heads/main' && secrets.INSTA_USER != '' && secrets.INSTA_PASS != ''
 
     steps:
       - name: Checkout repo
@@ -50,7 +50,7 @@ jobs:
           echo "Force run: $FORCE_RUN"
           echo ""
           
-          cd src
+              if: github.ref == 'refs/heads/main' && secrets.INSTA_USER != '' && secrets.INSTA_PASS != ''
           python main.py
           
           echo ""
@@ -62,6 +62,16 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
           # Make sure we're up to date before committing
+
+                - name: Validate secrets (friendly check)
+                  run: |
+                    echo "Checking required secrets..."
+                    if [ -z "${{ secrets.INSTA_USER }}" ] || [ -z "${{ secrets.INSTA_PASS }}" ]; then
+                      echo "WARNING: INSTA_USER or INSTA_PASS is not set."
+                      echo "Please add the repository secrets under Settings → Secrets and variables → Actions."
+                      echo "This job will exit now without doing anything."
+                      exit 0
+                    fi
           git pull --rebase origin main || echo "Nothing to rebase"
 
           # Add all tracking files
@@ -92,8 +102,6 @@ jobs:
           # Check conditions
           if [ "${{ github.ref }}" != "refs/heads/main" ]; then
             echo "❌ Not on main branch"
-          elif [ "${{ vars.WORKFLOW_ENABLED }}" != "true" ]; then
-            echo "❌ Workflow disabled (WORKFLOW_ENABLED != 'true')"
           elif [ -z "${{ secrets.INSTA_USER }}" ] || [ -z "${{ secrets.INSTA_PASS }}" ]; then
             echo "❌ Instagram credentials not configured"
           else
