@@ -1,0 +1,24 @@
+{
+  "timezone": "IST",
+  "min_interval_hours": 3,
+  "max_interval_hours": 4,
+  "random_delay_minutes": 30,
+  "weekday_windows": [
+    {
+      "start": "07:00",
+      "end": "23:30"
+    }
+  ],
+  "weekend_windows": [
+    {
+      "start": "09:00",
+      "end": "23:30"
+    }
+  ],
+  "use_random_delays": true,
+  "avoid_patterns": true,
+  "preferred_hours": [9, 12, 15, 18, 21],
+  "max_changes_per_day": 8,
+  "force_sleep_start": "23:30",
+  "force_wake_start": "06:30"
+}

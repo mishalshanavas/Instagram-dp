@@ -3,6 +3,7 @@ import logging
 from pathlib import Path
 from instagrapi import Client
 from instagrapi.exceptions import LoginRequired
+from time_manager import TimeManager
 
 logging.basicConfig(
     level=logging.INFO,
@@ -109,20 +110,58 @@ def change_profile_picture(client: Client, index: int) -> int:
 def main():
     logger.info("Starting Instagram Profile Picture Changer...")
     
+    # Get force_run flag from environment (set by workflow)
+    force_run = os.getenv("FORCE_RUN", "false").lower() == "true"
+    
     try:
         if not USERNAME or not PASSWORD:
             raise ValueError("USERNAME and PASSWORD environment variables must be set")
         
         ensure_data_directory()
+        
+        # Initialize time manager
+        time_mgr = TimeManager()
+        
+        # Log current schedule info
+        schedule_info = time_mgr.get_schedule_info()
+        logger.info("=" * 60)
+        logger.info("SCHEDULE INFORMATION")
+        logger.info("=" * 60)
+        for key, value in schedule_info.items():
+            if isinstance(value, dict):
+                logger.info(f"{key}:")
+                for k, v in value.items():
+                    logger.info(f"  {k}: {v}")
+            else:
+                logger.info(f"{key}: {value}")
+        logger.info("=" * 60)
+        
+        # Check if we should run now
+        should_run, reason, details = time_mgr.should_run_now(force=force_run)
+        
+        if not should_run:
+            logger.info(f"⏸️  SKIPPING: {reason}")
+            logger.info("Run will be skipped this cycle")
+            return
+        
+        logger.info(f"✅ PROCEEDING: {reason}")
+        
+        # Proceed with DP change
         client = login_user()
         current_index = read_current_index()
         next_index = change_profile_picture(client, current_index)
         write_current_index(next_index)
         
-        logger.info("Profile picture change completed successfully!")
+        # Record successful run and schedule next
+        next_scheduled = time_mgr.record_successful_run()
+        
+        logger.info("=" * 60)
+        logger.info("✅ Profile picture change completed successfully!")
+        logger.info(f"📅 Next run scheduled for: {next_scheduled.strftime('%Y-%m-%d %H:%M:%S')}")
+        logger.info("=" * 60)
         
     except Exception as e:
-        logger.error(f"Error in main execution: {e}")
+        logger.error(f"❌ Error in main execution: {e}")
         raise
 
 
