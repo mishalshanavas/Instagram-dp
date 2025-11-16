@@ -56,6 +56,11 @@ jobs:
           echo ""
           echo "=== Execution completed ==="
 
+      - name: Update README status
+        run: |
+          cd src
+          python update_readme_status.py
+
       - name: Commit & Push changes
         run: |
           git config --global user.name "github-actions[bot]"
@@ -64,14 +69,14 @@ jobs:
           # Make sure we're up to date before committing
           git pull --rebase origin main || echo "Nothing to rebase"
 
-          # Add all tracking files
-          git add data/index.txt data/session.json data/last_run.txt data/next_scheduled.txt data/config.json 2>/dev/null || true
+          # Add all tracking files and updated README
+          git add data/index.txt data/session.json data/last_run.txt data/next_scheduled.txt data/config.json README.md 2>/dev/null || true
           
           # Only commit if there are changes
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "Update DP & tracking files [$(date '+%Y-%m-%d %H:%M UTC')] [skip ci]"
+            git commit -m "Update DP & status [$(date '+%Y-%m-%d %H:%M UTC')] [skip ci]"
             git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
             git push origin HEAD:main
             echo "Changes committed and pushed"
