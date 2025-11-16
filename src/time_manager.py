@@ -46,11 +46,17 @@ TIMEZONES = {
 class TimeManager:
     """Manages scheduling and timing logic for DP changes"""
     
-    def __init__(self, config_path: Path = Path("data/config.json")):
+    def __init__(self, config_path: Path = None):
+        # Get repository root (parent of src/)
+        repo_root = Path(__file__).parent.parent
+        
+        if config_path is None:
+            config_path = repo_root / "data" / "config.json"
+        
         self.config_path = config_path
         self.config = self._load_config()
-        self.last_run_file = Path("data/last_run.txt")
-        self.schedule_file = Path("data/next_scheduled.txt")
+        self.last_run_file = repo_root / "data" / "last_run.txt"
+        self.schedule_file = repo_root / "data" / "next_scheduled.txt"
         self.tz_offset = self._parse_timezone(self.config.get("timezone", "UTC"))
     
     def _parse_timezone(self, tz_name: str) -> float:

@@ -13,8 +13,11 @@ logger = logging.getLogger(__name__)
 
 USERNAME = os.getenv("USERNAME")
 PASSWORD = os.getenv("PASSWORD")
-IMAGE_FOLDER = Path("assets/images")
-DATA_FOLDER = Path("data")
+
+# Get repository root (parent of src/)
+REPO_ROOT = Path(__file__).parent.parent
+IMAGE_FOLDER = REPO_ROOT / "assets" / "images"
+DATA_FOLDER = REPO_ROOT / "data"
 INDEX_FILE = DATA_FOLDER / "index.txt"
 SESSION_FILE = DATA_FOLDER / "session.json"
 
