@@ -14,6 +14,19 @@
 
 <!-- STATUS_START -->
 
+## 📊 Live Status
+
+<div align="center">
+
+| Current DP | Next DP | Next Change Scheduled |
+|:----------:|:-------:|:--------------------:|
+| <img src="./assets/images/3.png" width="150" alt="Current DP"> | <img src="./assets/images/4.png" width="150" alt="Next DP"> | 📅 **Not scheduled**<br>🕐 **TBD** |
+| **Image 3 of 11** | **Image 4 of 11** | Last updated: 14 days ago |
+
+**Total Images:** 11
+
+</div>
+
 <!-- STATUS_END -->
 
 ## Quick Setup

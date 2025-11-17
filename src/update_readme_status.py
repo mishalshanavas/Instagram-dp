@@ -95,29 +95,16 @@ def format_time_ago(dt):
         return f"{days} day{'s' if days != 1 else ''} ago"
 
 
-def format_time_until(dt):
-    """Format datetime as 'In X hours' or similar"""
+def format_next_time(dt, timezone):
+    """Format next scheduled time"""
     if dt is None:
-        return "Not scheduled"
+        return "Not scheduled", "TBD"
     
-    now = datetime.now()
-    diff = dt - now
+    # Format as readable date and time
+    date_str = dt.strftime("%b %d, %Y")
+    time_str = dt.strftime("%I:%M %p")
     
-    if diff.total_seconds() < 0:
-        return "Overdue"
-    elif diff.total_seconds() < 60:
-        return "In < 1 min"
-    elif diff.total_seconds() < 3600:
-        mins = int(diff.total_seconds() / 60)
-        return f"In ~{mins} min"
-    elif diff.total_seconds() < 86400:
-        hours = int(diff.total_seconds() / 3600)
-        mins = int((diff.total_seconds() % 3600) / 60)
-        return f"In ~{hours}h {mins}m"
-    else:
-        days = int(diff.total_seconds() / 86400)
-        hours = int((diff.total_seconds() % 86400) / 3600)
-        return f"In ~{days}d {hours}h"
+    return date_str, f"{time_str} {timezone}"
 
 
 def generate_status_section():
@@ -132,21 +119,20 @@ def generate_status_section():
     
     # Format timestamps
     last_run_str = format_time_ago(last_run)
-    next_run_str = format_time_until(next_scheduled)
-    next_time_str = next_scheduled.strftime("%H:%M %Z") if next_scheduled else "Not scheduled"
+    next_date, next_time = format_next_time(next_scheduled, timezone)
     
     status_content = f"""{START_MARKER}
 
-## Live Status
+## 📊 Live Status
 
 <div align="center">
 
-| Current DP | Next DP | Status |
-|:----------:|:-------:|:------:|
-| <img src="./assets/images/{current_idx + 1}.png" width="150" alt="Current DP"> | <img src="./assets/images/{next_idx + 1}.png" width="150" alt="Next DP"> | ⏰ **{next_run_str}** |
-| **Image {current_idx + 1} of {total_images}** | **Image {next_idx + 1} of {total_images}** | Next: {next_time_str} {timezone} |
+| Current DP | Next DP | Next Change Scheduled |
+|:----------:|:-------:|:--------------------:|
+| <img src="./assets/images/{current_idx + 1}.png" width="150" alt="Current DP"> | <img src="./assets/images/{next_idx + 1}.png" width="150" alt="Next DP"> | 📅 **{next_date}**<br>🕐 **{next_time}** |
+| **Image {current_idx + 1} of {total_images}** | **Image {next_idx + 1} of {total_images}** | Last updated: {last_run_str} |
 
-**Last Updated:** {last_run_str} • **Total Images:** {total_images}
+**Total Images:** {total_images}
 
 </div>
 
