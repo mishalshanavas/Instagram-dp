@@ -2,7 +2,7 @@
 Smart Time Management Module for Instagram DP Changer
 
 This module implements human-like scheduling with:
-- Random delays (±30 minutes) to avoid patterns
+- Random delays to avoid patterns
 - Configurable active/sleep hours
 - Smart rate limiting with jitter
 - Multiple time windows support
@@ -107,14 +107,7 @@ class TimeManager:
             ],
             
             # Behavior settings
-            "use_random_delays": True,
-            "avoid_patterns": True,
-            "preferred_hours": [9, 12, 15, 18, 21],  # More likely to change during these hours
-            
-            # Safety limits
-            "max_changes_per_day": 8,
-            "force_sleep_start": "23:30",
-            "force_wake_start": "06:30"
+            "use_random_delays": True
         }
         
         if self.config_path.exists():
@@ -244,23 +237,6 @@ class TimeManager:
             hours=base_interval_hours,
             minutes=random_delay_minutes
         )
-        
-        # Adjust to preferred hours if avoid_patterns is enabled
-        if self.config['avoid_patterns'] and self.config['preferred_hours']:
-            preferred = self.config['preferred_hours']
-            current_hour = next_run.hour
-            
-            # Find nearest preferred hour with some randomness
-            if current_hour not in preferred:
-                # 70% chance to snap to preferred hour
-                if random.random() < 0.7:
-                    nearest = min(preferred, key=lambda x: abs(x - current_hour))
-                    # Add some jitter (±15 mins)
-                    minute_jitter = random.randint(-15, 15)
-                    next_run = next_run.replace(
-                        hour=nearest,
-                        minute=max(0, min(59, next_run.minute + minute_jitter))
-                    )
         
         # Ensure it's within active windows
         next_run = self._adjust_to_active_window(next_run)
@@ -408,8 +384,7 @@ class TimeManager:
                 "min_interval_hours": self.config['min_interval_hours'],
                 "max_interval_hours": self.config['max_interval_hours'],
                 "random_delay_minutes": self.config['random_delay_minutes'],
-                "use_random_delays": self.config['use_random_delays'],
-                "avoid_patterns": self.config['avoid_patterns']
+                "use_random_delays": self.config['use_random_delays']
             }
         }
         

@@ -1,4 +1,5 @@
 import os
+import time
 import logging
 from pathlib import Path
 from instagrapi import Client
@@ -27,23 +28,60 @@ def ensure_data_directory():
 
 
 def login_user() -> Client:
-    logger.info("Initializing Instagram client...")
-    cl = Client()
+    """
+    Login following instagrapi best practices:
+    https://subzeroid.github.io/instagrapi/usage-guide/best-practices.html
     
+    - Reuse session to avoid repeated logins (Instagram flags fresh logins)
+    - Preserve device UUIDs across relogins (so Instagram sees the same device)
+    - Add delay_range for human-like request spacing
+    """
+    cl = Client()
+    cl.delay_range = [1, 3]
+
+    login_via_session = False
+    login_via_pw = False
+
     if SESSION_FILE.exists():
         logger.info("Loading existing session...")
-        cl.load_settings(str(SESSION_FILE))
-    
-    try:
-        cl.login(USERNAME, PASSWORD)
-        cl.get_timeline_feed()
-        logger.info("Successfully logged in to Instagram")
-    except LoginRequired:
-        logger.warning("Session expired, creating new session...")
-        cl.set_settings({})
-        cl.login(USERNAME, PASSWORD)
-        logger.info("Created new session and logged in")
-    
+        session = cl.load_settings(str(SESSION_FILE))
+
+        if session:
+            try:
+                cl.set_settings(session)
+                cl.login(USERNAME, PASSWORD)
+
+                # Check if session is still valid
+                try:
+                    cl.get_timeline_feed()
+                except LoginRequired:
+                    logger.info("Session expired, re-logging with same device UUIDs...")
+
+                    old_session = cl.get_settings()
+
+                    # Preserve device UUIDs so Instagram sees the same device
+                    cl.set_settings({})
+                    cl.set_uuids(old_session["uuids"])
+
+                    cl.login(USERNAME, PASSWORD)
+
+                login_via_session = True
+                logger.info("Logged in via session")
+            except Exception as e:
+                logger.warning(f"Session login failed: {e}")
+
+    if not login_via_session:
+        try:
+            logger.info("Logging in via username and password...")
+            if cl.login(USERNAME, PASSWORD):
+                login_via_pw = True
+                logger.info("Logged in via password")
+        except Exception as e:
+            logger.error(f"Password login failed: {e}")
+
+    if not login_via_session and not login_via_pw:
+        raise Exception("Could not login with either session or password")
+
     cl.dump_settings(str(SESSION_FILE))
     return cl
 
@@ -99,12 +137,18 @@ def change_profile_picture(client: Client, index: int) -> int:
     
     logger.info(f"Changing profile picture to: {current_image}")
     
-    try:
-        client.account_change_picture(str(image_path))
-        logger.info(f"Successfully changed profile picture to: {current_image}")
-    except Exception as e:
-        logger.error(f"Failed to change profile picture: {e}")
-        raise
+    for attempt in range(2):
+        try:
+            client.account_change_picture(str(image_path))
+            logger.info(f"Successfully changed profile picture to: {current_image}")
+            break
+        except Exception as e:
+            if attempt == 0:
+                logger.warning(f"Attempt 1 failed: {e}, retrying in 10s...")
+                time.sleep(10)
+            else:
+                logger.error(f"Failed to change profile picture after 2 attempts: {e}")
+                raise
     
     next_index = (index + 1) % len(images)
     return next_index

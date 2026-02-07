@@ -10,162 +10,137 @@
 
 </div>
 
-> **TL;DR**: Fork this repo, add your pics, set your credentials, enable github actions and let GitHub change your Instagram DP every 3 hours. You'll look active while doing absolutely nothing.
-
-<!-- STATUS_START -->
-
-## 📊 Live Status
-
-<div align="center">
-
-| Current DP | Next DP | Next Change Scheduled |
-|:----------:|:-------:|:--------------------:|
-| <img src="./assets/images/3.png" width="150" alt="Current DP"> | <img src="./assets/images/4.png" width="150" alt="Next DP"> | 📅 **Not scheduled**<br>🕐 **TBD** |
-| **Image 3 of 11** | **Image 4 of 11** | Last updated: 14 days ago |
-
-**Total Images:** 11
-
-</div>
-
-<!-- STATUS_END -->
+> **TL;DR**: Fork this repo, add your pics, set your credentials, enable GitHub Actions — your Instagram DP changes automatically every 3-4 hours. You look active while doing nothing.
 
 ## Quick Setup
+
 ```
-1. Fork → 2. Replace pics → 3. Add secrets → 4. Enable Actions → 5. Chill
+1. Fork → 2. Add pics → 3. Set secrets → 4. Enable Actions → 5. Done
 ```
 
-**Step 1: Fork This Thing**  
-Hit that **Fork** button up there ↗️ You now own this bot.
+### 1. Fork the Repo
 
-**Step 2: Drop Your Pics**  
-Put your images in `assets/images/`:
+Hit the **Fork** button at the top right. That's your copy now.
+
+### 2. Add Your Images
+
+Drop your pictures into `assets/images/`. Name them with numbers — the bot cycles through them in order.
+
 ```
 assets/images/
 ├── 1.png
-├── 2.png 
+├── 2.png
+├── 3.jpg     ← png, jpg, jpeg all work
 ├── ...
 └── 11.png
 ```
-> Pro tip: Don't get fancy with names. The bot has trust issues.
-(so follow the same nameing scheme)
 
-**Step 3: Secret Stuff**  
-**Settings** → **Secrets** → **Actions** → Add these:
-- `INSTA_USER` → Your Instagram username  
-- `INSTA_PASS` → Your Instagram password
+Keep the naming simple: `1.png`, `2.png`, etc. The bot sorts by the number in the filename.
 
-**Step 4: Enable GitHub Actions**  
-**Actions** → **I understand my workflows, go ahead and enable them**
+### 3. Add Your Instagram Credentials
 
-**Step 5: Watch It Work**  
-Bot runs automatically with smart scheduling (3-4 hour intervals with random delays).  
-**Impatient?** Force run: **Actions** → **Run workflow** → `force_run = true`
+Go to **Settings → Secrets and variables → Actions → New repository secret** and add:
+
+| Secret Name | Value |
+|---|---|
+| `INSTA_USER` | Your Instagram username |
+| `INSTA_PASS` | Your Instagram password |
+
+These are encrypted by GitHub and never visible in logs.
+
+### 4. Enable GitHub Actions
+
+Go to the **Actions** tab → Click **"I understand my workflows, go ahead and enable them"**
+
+### 5. That's It
+
+The bot runs automatically every 2 hours. The built-in scheduler decides when to actually change the DP (every 3-4 hours with random variation).
+
+**Can't wait?** Go to **Actions → Update Instagram DP → Run workflow** and set `force_run` to `true`.
 
 ## Customization
 
-Want to customize the schedule? Edit `data/config.json`:
+Edit `data/config.json` to tweak the schedule:
 
 ```json
 {
-  "timezone": "Asia/Kolkata",       // Your timezone (see options below)
-  "min_interval_hours": 3,          // Minimum time between changes
-  "max_interval_hours": 4,          // Maximum time between changes
-  "random_delay_minutes": 30,       // Random jitter (±30 mins)
-  "weekday_windows": [              // Active hours on weekdays
-    {"start": "07:00", "end": "23:30"}
+  "timezone": "Asia/Kolkata",
+  "min_interval_hours": 3,
+  "max_interval_hours": 4,
+  "random_delay_minutes": 30,
+  "weekday_windows": [
+    { "start": "07:00", "end": "23:30" }
   ],
-  "weekend_windows": [              // Active hours on weekends
-    {"start": "09:00", "end": "23:30"}
+  "weekend_windows": [
+    { "start": "09:00", "end": "23:30" }
   ],
-  "preferred_hours": [9, 12, 15, 18, 21],  // Peak activity hours
-  "use_random_delays": true,        // Enable random delays
-  "avoid_patterns": true            // Avoid predictable timing
+  "use_random_delays": true
 }
 ```
 
-**Timezone Options:**
-You can use any of these formats:
-- **Named timezones**: `"Asia/Kolkata"`, `"IST"`, `"EST"`, `"PST"`, `"JST"`, `"GMT"`, `"UTC"`
-- **UTC offset**: `"UTC+5.5"`, `"UTC-8"`, `"UTC+0"`
-- **Common abbreviations**:
-  - `IST` - India Standard Time (UTC+5.5)
-  - `EST`/`EDT` - US Eastern (UTC-5/-4)
-  - `PST`/`PDT` - US Pacific (UTC-8/-7)
-  - `CST`/`CDT` - US Central (UTC-6/-5)
-  - `JST` - Japan (UTC+9)
-  - `AEST` - Australia Eastern (UTC+10)
-  - `CET`/`CEST` - Central European (UTC+1/+2)
-
-**What you can customize:**
-- 🌍 **Timezone** - Set your local timezone for accurate scheduling
-- ⏰ Active time windows (different for weekdays/weekends)
-- ⏱️ Interval between changes (min/max hours)
-- 🎲 Randomization amount (±minutes)
-- 📊 Preferred hours (when changes are more likely)
-- 🎯 Pattern avoidance behavior
+| Setting | What It Does |
+|---|---|
+| `timezone` | Your local timezone. Supports `"IST"`, `"EST"`, `"PST"`, `"Asia/Kolkata"`, `"UTC+5.5"`, etc. |
+| `min/max_interval_hours` | How long between DP changes (random value within this range) |
+| `random_delay_minutes` | Extra jitter added on top (±30 mins by default) |
+| `weekday_windows` | Hours when the bot is allowed to run on weekdays |
+| `weekend_windows` | Same, but for weekends |
+| `use_random_delays` | Set to `false` if you want exact intervals (not recommended) |
 
 ## How It Works
 
-The bot uses **intelligent time management** with human-like patterns to avoid detection:
+GitHub Actions triggers every 2 hours. The Python script then decides whether to actually change the DP based on the schedule.
 
-**Smart Scheduling Features:**
-- 🎲 **Random Delays**: Each run is scheduled 3-4 hours apart, plus ±30 minutes of randomization
-- ⏰ **Preferred Hours**: More likely to change DP during peak hours (9 AM, 12 PM, 3 PM, 6 PM, 9 PM)
-- 📅 **Weekend Mode**: Different active hours for weekdays vs weekends
-- 🌙 **Sleep Mode**: Automatically pauses between 11:30 PM - 7:00 AM
-- 🎯 **Pattern Avoidance**: Never runs at exactly the same time twice
-- ⚡ **Force Run**: Manual override to bypass all timing restrictions
+**Why not just use a cron schedule directly?** Because changing your DP at exactly 00:00, 03:00, 06:00 every day looks robotic. This bot adds randomness so it feels natural.
 
-**Technical Implementation:**
-- Uses GitHub Actions as cron scheduler (runs every 2 hours)
-- Python `TimeManager` class handles all scheduling logic
-- Session persistence via encrypted cookies in `data/session.json`
-- Maintains state across runs with tracking files:
-  - `last_run.txt` - Timestamp of last successful change
-  - `next_scheduled.txt` - When the next change should occur
-  - `config.json` - Customizable time windows and behavior
-  - `index.txt` - Current position in image rotation
+**What happens on each run:**
 
-**Default Schedule:**
-- **Weekdays**: Active 7:00 AM - 11:30 PM IST
-- **Weekends**: Active 9:00 AM - 11:30 PM IST  
-- **Interval**: 3-4 hours between changes (with random variation)
-- **Daily Limit**: Maximum 8 profile picture changes per day
+1. **Schedule check** — Is it time to change? If not, skip.
+2. **Session login** — Reuses your saved Instagram session (no fresh login every time). Follows [instagrapi best practices](https://subzeroid.github.io/instagrapi/usage-guide/best-practices.html) — same device UUIDs, request delays, session persistence.
+3. **Change DP** — Picks the next image in rotation, uploads it. Has automatic retry if Instagram is flaky.
+4. **Update state** — Saves the new index and schedules the next run.
 
-## When Things Break
+**Session handling:** Your Instagram session is cached between runs (via GitHub Actions cache), so the bot doesn't do a fresh login every time. This is important — Instagram flags repeated fresh logins as suspicious. The session stays alive across runs, just like keeping the app open on your phone.
 
-```bash
-# Nothing happening? → Check Actions tab for red X's
-# Login failed? → Double-check username/password  
-# Rate limited? → Chill. Instagram will forgive you.
-# Want different schedule? → Edit data/config.json
-# Changes not happening? → Check data/next_scheduled.txt for next run time
+**Default schedule:**
+- **Weekdays**: 7:00 AM – 11:30 PM
+- **Weekends**: 9:00 AM – 11:30 PM
+- **Interval**: 3–4 hours + up to ±30 min random variation
+- Outside active hours, the bot sleeps automatically
+
+## Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| Nothing happening | Check the **Actions** tab for errors (red X) |
+| Login failed | Double-check `INSTA_USER` and `INSTA_PASS` in repo secrets |
+| Rate limited by Instagram | Wait it out. Instagram cools down after a few hours |
+| Wrong schedule | Edit `data/config.json` and push |
+| Want to trigger manually | Actions → Update Instagram DP → Run workflow → `force_run = true` |
+
+## Project Structure
+
+```
+├── .github/workflows/change-dp.yml   ← GitHub Actions workflow
+├── assets/images/                     ← Your profile pictures
+├── data/
+│   ├── config.json                    ← Schedule settings
+│   ├── index.txt                      ← Current image position
+│   ├── last_run.txt                   ← When the last change happened
+│   └── next_scheduled.txt             ← When the next change is due
+└── src/
+    ├── main.py                        ← Core logic
+    ├── time_manager.py                ← Scheduling engine
+    └── requirements.txt               ← Python dependencies
 ```
 
-## Advanced Usage
-
-**Check current schedule status:**
-The bot logs detailed schedule info on every run. Check the Actions logs to see:
-- Current time and timezone
-- Active window status
-- Time since last run
-- Next scheduled run time
-- All configuration settings
-
-**Understanding the files:**
-- `data/config.json` - Your schedule preferences
-- `data/last_run.txt` - Unix timestamp of last successful change
-- `data/next_scheduled.txt` - Unix timestamp of next scheduled change
-- `data/index.txt` - Current image index (0-10)
-- `data/session.json` - Instagram session data (auto-managed)
+`data/session.json` (Instagram session) is cached securely via GitHub Actions and excluded from the repo via `.gitignore`.
 
 <div align="center">
 
-**That's it.** Fork → Setup → Netflix
+**Fork it. Set it. Forget it.**
 
-**Built with** [instagrapi](https://github.com/adw0rd/instagrapi) - The unofficial Instagram API that actually works
-
-*Don't blame us if Instagram gets moody* 🤷‍♂️
+Built with [instagrapi](https://github.com/subzeroid/instagrapi)
 
 </div>
 

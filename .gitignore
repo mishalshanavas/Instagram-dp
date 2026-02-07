@@ -1,0 +1,12 @@
+# Instagram session data (contains auth tokens - never commit!)
+data/session.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.env
+
+# OS
+.DS_Store
+Thumbs.db

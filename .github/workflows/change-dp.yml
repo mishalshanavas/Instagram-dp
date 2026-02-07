@@ -27,8 +27,14 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+
+      - name: Restore session cache
+        uses: actions/cache@v4
         with:
-          fetch-depth: 0
+          path: data/session.json
+          key: insta-session-${{ github.run_id }}
+          restore-keys: |
+            insta-session-
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -45,21 +51,14 @@ jobs:
           PASSWORD: ${{ secrets.INSTA_PASS }}
           FORCE_RUN: ${{ github.event.inputs.force_run }}
         run: |
-          echo "=== Instagram Profile Picture Update ==="
-          echo "Timestamp: $(date '+%Y-%m-%d %H:%M:%S UTC')"
-          echo "Force run: $FORCE_RUN"
-          echo ""
-          
           cd src
           python main.py
           
-          echo ""
-          echo "=== Execution completed ==="
-
-      - name: Update README status
-        run: |
-          cd src
-          python update_readme_status.py
+          # Write summary to Actions UI
+          echo "### Instagram DP Update" >> $GITHUB_STEP_SUMMARY
+          echo "- **Time:** $(date '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image Index:** $(cat ../data/index.txt)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Force Run:** $FORCE_RUN" >> $GITHUB_STEP_SUMMARY
 
       - name: Commit & Push changes
         run: |
@@ -70,36 +69,14 @@ jobs:
           git pull --rebase origin main || echo "Nothing to rebase"
 
           # Add all tracking files and updated README
-          git add data/index.txt data/session.json data/last_run.txt data/next_scheduled.txt data/config.json README.md 2>/dev/null || true
+          git add data/index.txt data/last_run.txt data/next_scheduled.txt data/config.json 2>/dev/null || true
           
           # Only commit if there are changes
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "Update DP & status [$(date '+%Y-%m-%d %H:%M UTC')] [skip ci]"
+            git commit -m "Update DP [$(date '+%Y-%m-%d %H:%M UTC')] [skip ci]"
             git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
             git push origin HEAD:main
             echo "Changes committed and pushed"
           fi
-
-  # Status job to show workflow state
-  status:
-    runs-on: ubuntu-latest
-    if: always()
-    steps:
-      - name: Show workflow status
-        run: |
-          echo "=== Workflow Status ==="
-          echo "Timestamp: $(date '+%Y-%m-%d %H:%M:%S UTC')"
-          echo "Branch: ${{ github.ref }}"
-          echo "Trigger: ${{ github.event_name }}"
-          
-          # Check conditions
-          if [ "${{ github.ref }}" != "refs/heads/main" ]; then
-            echo "❌ Not on main branch"
-          elif [ -z "${{ secrets.INSTA_USER }}" ] || [ -z "${{ secrets.INSTA_PASS }}" ]; then
-            echo "❌ Instagram credentials not configured"
-          else
-            echo "✅ All conditions met - workflow executed"
-          fi
-          echo "======================="
