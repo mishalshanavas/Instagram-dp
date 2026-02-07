@@ -1,5 +1,7 @@
 import os
 import time
+import json
+import base64
 import logging
 from pathlib import Path
 from instagrapi import Client
@@ -32,9 +34,13 @@ def login_user() -> Client:
     Login following instagrapi best practices:
     https://subzeroid.github.io/instagrapi/usage-guide/best-practices.html
     
-    - Reuse session to avoid repeated logins (Instagram flags fresh logins)
-    - Preserve device UUIDs across relogins (so Instagram sees the same device)
-    - Add delay_range for human-like request spacing
+    Priority order:
+    1. Cached session file (from previous run via Actions cache)
+    2. INSTA_SESSION secret (base64-encoded, bootstrapped from local machine)
+    3. Fresh password login (likely to fail on GitHub Actions IPs)
+    
+    Session reuse is critical — Instagram blacklists GitHub Actions IPs
+    for fresh logins. Always generate a session locally first.
     """
     cl = Client()
     cl.delay_range = [1, 3]
@@ -42,8 +48,9 @@ def login_user() -> Client:
     login_via_session = False
     login_via_pw = False
 
+    # Try 1: Load cached session file
     if SESSION_FILE.exists():
-        logger.info("Loading existing session...")
+        logger.info("Loading cached session...")
         session = cl.load_settings(str(SESSION_FILE))
 
         if session:
@@ -51,28 +58,64 @@ def login_user() -> Client:
                 cl.set_settings(session)
                 cl.login(USERNAME, PASSWORD)
 
-                # Check if session is still valid
                 try:
                     cl.get_timeline_feed()
                 except LoginRequired:
                     logger.info("Session expired, re-logging with same device UUIDs...")
 
                     old_session = cl.get_settings()
-
-                    # Preserve device UUIDs so Instagram sees the same device
                     cl.set_settings({})
                     cl.set_uuids(old_session["uuids"])
-
                     cl.login(USERNAME, PASSWORD)
 
                 login_via_session = True
-                logger.info("Logged in via session")
+                logger.info("Logged in via cached session")
             except Exception as e:
-                logger.warning(f"Session login failed: {e}")
+                logger.warning(f"Cached session login failed: {e}")
 
+    # Try 2: Bootstrap from INSTA_SESSION secret (base64)
+    if not login_via_session:
+        session_b64 = os.getenv("INSTA_SESSION", "")
+        if session_b64:
+            logger.info("Bootstrapping from INSTA_SESSION secret...")
+            try:
+                session_data = json.loads(base64.b64decode(session_b64))
+                
+                # Check if it's a simple credential format (not a full instagrapi session)
+                if "username" in session_data and "password" in session_data:
+                    logger.info("Using simple credential format from INSTA_SESSION")
+                    # Use the credentials from the secret
+                    secret_username = session_data["username"]
+                    secret_password = session_data["password"]
+                    
+                    if cl.login(secret_username, secret_password):
+                        login_via_session = True
+                        logger.info("Logged in via INSTA_SESSION credentials")
+                else:
+                    # Full instagrapi session format
+                    cl.set_settings(session_data)
+                    cl.login(USERNAME, PASSWORD)
+
+                    try:
+                        cl.get_timeline_feed()
+                    except LoginRequired:
+                        logger.info("Secret session expired, re-logging with same device UUIDs...")
+
+                        old_session = cl.get_settings()
+                        cl.set_settings({})
+                        cl.set_uuids(old_session["uuids"])
+                        cl.login(USERNAME, PASSWORD)
+
+                    login_via_session = True
+                    logger.info("Logged in via INSTA_SESSION full session")
+                
+            except Exception as e:
+                logger.warning(f"INSTA_SESSION secret login failed: {e}")
+
+    # Try 3: Fresh password login (usually blocked on Actions IPs)
     if not login_via_session:
         try:
-            logger.info("Logging in via username and password...")
+            logger.info("Attempting fresh password login (may be blocked on shared IPs)...")
             if cl.login(USERNAME, PASSWORD):
                 login_via_pw = True
                 logger.info("Logged in via password")
@@ -80,7 +123,10 @@ def login_user() -> Client:
             logger.error(f"Password login failed: {e}")
 
     if not login_via_session and not login_via_pw:
-        raise Exception("Could not login with either session or password")
+        raise Exception(
+            "Could not login. GitHub Actions IPs are likely blocked by Instagram. "
+            "Run 'python src/create_session.py' locally and add the INSTA_SESSION secret."
+        )
 
     cl.dump_settings(str(SESSION_FILE))
     return cl

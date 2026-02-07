@@ -37,7 +37,18 @@ assets/images/
 
 Keep the naming simple: `1.png`, `2.png`, etc. The bot sorts by the number in the filename.
 
-### 3. Add Your Instagram Credentials
+### 3. Generate Your Session (Important)
+
+Instagram blocks logins from GitHub's shared IPs. You need to create a session from your own machine first:
+
+```bash
+pip install instagrapi
+python src/create_session.py
+```
+
+It will ask for your username/password, log in from your trusted IP, and print a base64 string.
+
+### 4. Add Secrets
 
 Go to **Settings → Secrets and variables → Actions → New repository secret** and add:
 
@@ -45,14 +56,15 @@ Go to **Settings → Secrets and variables → Actions → New repository secret
 |---|---|
 | `INSTA_USER` | Your Instagram username |
 | `INSTA_PASS` | Your Instagram password |
+| `INSTA_SESSION` | The base64 string from step 3 |
 
-These are encrypted by GitHub and never visible in logs.
+The session secret is only needed for the first run. After that, the bot caches and reuses the session automatically.
 
-### 4. Enable GitHub Actions
+### 5. Enable GitHub Actions
 
 Go to the **Actions** tab → Click **"I understand my workflows, go ahead and enable them"**
 
-### 5. That's It
+### 6. That's It
 
 The bot runs automatically every 2 hours. The built-in scheduler decides when to actually change the DP (every 3-4 hours with random variation).
 
@@ -113,10 +125,12 @@ GitHub Actions triggers every 2 hours. The Python script then decides whether to
 | Problem | Fix |
 |---|---|
 | Nothing happening | Check the **Actions** tab for errors (red X) |
-| Login failed | Double-check `INSTA_USER` and `INSTA_PASS` in repo secrets |
+| IP blocked / login failed | Run `python src/create_session.py` locally and add the `INSTA_SESSION` secret |
+| Login failed (credentials) | Double-check `INSTA_USER` and `INSTA_PASS` in repo secrets |
 | Rate limited by Instagram | Wait it out. Instagram cools down after a few hours |
 | Wrong schedule | Edit `data/config.json` and push |
 | Want to trigger manually | Actions → Update Instagram DP → Run workflow → `force_run = true` |
+| Session expired after weeks | Re-run `create_session.py` locally to refresh the `INSTA_SESSION` secret |
 
 ## Project Structure
 
@@ -131,6 +145,7 @@ GitHub Actions triggers every 2 hours. The Python script then decides whether to
 └── src/
     ├── main.py                        ← Core logic
     ├── time_manager.py                ← Scheduling engine
+    ├── create_session.py              ← Run locally to generate session
     └── requirements.txt               ← Python dependencies
 ```
 

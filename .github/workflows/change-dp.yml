@@ -36,6 +36,21 @@ jobs:
           restore-keys: |
             insta-session-
 
+      - name: Bootstrap session from secret
+        if: ${{ env.HAS_SESSION == 'true' }}
+        env:
+          HAS_SESSION: ${{ secrets.INSTA_SESSION != '' }}
+          INSTA_SESSION: ${{ secrets.INSTA_SESSION }}
+        run: |
+          # Only write if no cached session exists
+          if [ ! -f data/session.json ]; then
+            echo "No cached session found, bootstrapping from secret..."
+            mkdir -p data
+            echo "$INSTA_SESSION" | base64 -d > data/session.json
+          else
+            echo "Cached session exists, skipping bootstrap"
+          fi
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -50,6 +65,7 @@ jobs:
           USERNAME: ${{ secrets.INSTA_USER }}
           PASSWORD: ${{ secrets.INSTA_PASS }}
           FORCE_RUN: ${{ github.event.inputs.force_run }}
+          INSTA_SESSION: ${{ secrets.INSTA_SESSION }}
         run: |
           cd src
           python main.py
