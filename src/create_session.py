@@ -9,7 +9,6 @@ Usage:
     python create_session.py
 """
 
-import getpass
 from pathlib import Path
 from instagrapi import Client
 
@@ -22,7 +21,7 @@ def main():
     print("The saved session.json will be reused by GitHub Actions.\n")
 
     username = input("Instagram username: ").strip()
-    password = getpass.getpass("Instagram password: ")
+    password = input("Instagram password: ").strip()
 
     if not username or not password:
         raise SystemExit("Username and password are required.")
