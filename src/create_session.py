@@ -1,73 +1,63 @@
 """
-SIMPLE SESSION GENERATOR
-
-This creates a session WITHOUT instagrapi (since it requires old Python).
-Creates a base64 string to paste into GitHub Secrets that contains your 
-Instagram username and password.
-
-The main script will use this to login directly with instagrapi on GitHub Actions.
+Run this ONCE from your local machine / home network to create a session.
+Instagram sees your home IP → trusts the login → saves the session.
+GitHub Actions then reuses this session without triggering a fresh login.
 
 Usage:
+    cd src
+    pip install instagrapi
     python create_session.py
 """
 
-import base64
-import json
 import getpass
-import os
+from pathlib import Path
+from instagrapi import Client
+
+SESSION_FILE = Path(__file__).parent.parent / "data" / "session.json"
 
 
 def main():
-    print("=" * 50)
-    print("Instagram Session Generator (Simple)")
-    print("=" * 50)
-    print()
-    print("This creates a session secret for GitHub Actions.")
-    print("Your credentials are base64-encoded (NOT encrypted).")
-    print()
+    print("=== Instagram Session Creator ===\n")
+    print("This logs in from YOUR network so Instagram trusts the session.")
+    print("The saved session.json will be reused by GitHub Actions.\n")
 
-    # Check for environment variables first
-    username = os.getenv("INSTA_USER")
-    password = os.getenv("INSTA_PASS")
-    
-    # If not found in env vars, prompt interactively
-    if not username:
-        username = input("Instagram username: ").strip()
-    if not password:
-        password = getpass.getpass("Instagram password: ")
+    username = input("Instagram username: ").strip()
+    password = getpass.getpass("Instagram password: ")
 
     if not username or not password:
-        print("Username and password are required.")
-        return
+        raise SystemExit("Username and password are required.")
 
-    # Create a minimal session data structure
-    session_data = {
-        "username": username,
-        "password": password,
-        "created_at": "local_machine"
-    }
+    SESSION_FILE.parent.mkdir(exist_ok=True)
 
-    session_json = json.dumps(session_data)
-    session_b64 = base64.b64encode(session_json.encode()).decode()
+    cl = Client()
 
-    print()
-    print("=" * 50)
-    print("Copy the value below and add it as a GitHub Secret:")
-    print()
-    print("  Secret name:  INSTA_SESSION")
-    print("  Secret value: (below)")
-    print("=" * 50)
-    print()
-    print(session_b64)
-    print()
-    print("=" * 50)
-    print("Go to: Settings → Secrets → Actions → New secret")
-    print("Name:  INSTA_SESSION")
-    print("Value: paste the base64 string above")
-    print("=" * 50)
-    print()
-    print("Note: This just encodes your username/password.")
-    print("The main script will use instagrapi to login properly.")
+    # If an old session exists, try to reuse it first
+    if SESSION_FILE.exists():
+        print("\nFound existing session, validating...")
+        cl.load_settings(str(SESSION_FILE))
+        cl.login(username, password)
+        try:
+            cl.get_timeline_feed()
+            print("Existing session is still valid!")
+            cl.dump_settings(str(SESSION_FILE))
+            print(f"\nSession saved to: {SESSION_FILE}")
+            return
+        except Exception:
+            print("Session expired, creating a fresh one...")
+            cl = Client()
+
+    # Fresh login from local network
+    print("\nLogging in (this creates a trusted session from your IP)...")
+    cl.login(username, password)
+    cl.get_timeline_feed()  # validate
+    cl.dump_settings(str(SESSION_FILE))
+
+    print(f"\nSession saved to: {SESSION_FILE}")
+    print("\nNext steps:")
+    print("  1. git add data/session.json")
+    print("  2. git commit -m 'add session'")
+    print("  3. git push")
+    print("\nGitHub Actions will now reuse this session instead of logging in fresh.")
 
 
 if __name__ == "__main__":

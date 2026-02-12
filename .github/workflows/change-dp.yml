@@ -2,18 +2,8 @@ name: Update Instagram DP
 
 on:
   schedule:
-    # Run every 2 hours - Time manager will handle smart scheduling
-    - cron: "0 */2 * * *"
-  workflow_dispatch:
-    inputs:
-      force_run:
-        description: 'Force run (bypass all time and rate limits)'
-        required: false
-        default: 'false'
-        type: choice
-        options:
-          - 'false'
-          - 'true'
+    - cron: "20 */4 * * *"    # every 4 hours at :20
+  workflow_dispatch:            # manual trigger
 
 permissions:
   contents: write
@@ -21,78 +11,37 @@ permissions:
 jobs:
   update-dp:
     runs-on: ubuntu-latest
-    # Only run on main branch
     if: github.ref == 'refs/heads/main'
 
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Restore session cache
-        uses: actions/cache@v4
-        with:
-          path: data/session.json
-          key: insta-session-${{ github.run_id }}
-          restore-keys: |
-            insta-session-
-
-      - name: Bootstrap session from secret
-        if: ${{ env.HAS_SESSION == 'true' }}
-        env:
-          HAS_SESSION: ${{ secrets.INSTA_SESSION != '' }}
-          INSTA_SESSION: ${{ secrets.INSTA_SESSION }}
+      - name: Random delay (anti-detection)
         run: |
-          # Only write if no cached session exists
-          if [ ! -f data/session.json ]; then
-            echo "No cached session found, bootstrapping from secret..."
-            mkdir -p data
-            echo "$INSTA_SESSION" | base64 -d > data/session.json
-          else
-            echo "Cached session exists, skipping bootstrap"
-          fi
+          DELAY=$((RANDOM % 2700))
+          echo "Sleeping ${DELAY}s before running..."
+          sleep $DELAY
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
+          python-version: "3.11"
 
       - name: Install dependencies
-        run: |
-          pip install -r src/requirements.txt
+        run: pip install -r src/requirements.txt
 
-      - name: Run main script with smart time management
+      - name: Change profile picture
         env:
           USERNAME: ${{ secrets.INSTA_USER }}
           PASSWORD: ${{ secrets.INSTA_PASS }}
-          FORCE_RUN: ${{ github.event.inputs.force_run }}
-          INSTA_SESSION: ${{ secrets.INSTA_SESSION }}
+        run: cd src && python main.py
+
+      - name: Commit changes
         run: |
-          cd src
-          python main.py
-          
-          # Write summary to Actions UI
-          echo "### Instagram DP Update" >> $GITHUB_STEP_SUMMARY
-          echo "- **Time:** $(date '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
-          echo "- **Image Index:** $(cat ../data/index.txt)" >> $GITHUB_STEP_SUMMARY
-          echo "- **Force Run:** $FORCE_RUN" >> $GITHUB_STEP_SUMMARY
-
-      - name: Commit & Push changes
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-
-          # Make sure we're up to date before committing
-          git pull --rebase origin main || echo "Nothing to rebase"
-
-          # Add all tracking files and updated README
-          git add data/index.txt data/last_run.txt data/next_scheduled.txt data/config.json 2>/dev/null || true
-          
-          # Only commit if there are changes
-          if git diff --staged --quiet; then
-            echo "No changes to commit"
-          else
-            git commit -m "Update DP [$(date '+%Y-%m-%d %H:%M UTC')] [skip ci]"
-            git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
-            git push origin HEAD:main
-            echo "Changes committed and pushed"
-          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/index.txt data/session.json 2>/dev/null || true
+          git diff --staged --quiet && exit 0
+          git commit -m "update dp [skip ci]"
+          git push

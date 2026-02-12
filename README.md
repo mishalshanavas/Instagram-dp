@@ -6,156 +6,111 @@
 *Demo at 10x speed*
 
 [![Update Instagram DP](https://github.com/mishal-scet/Instagram-dp/actions/workflows/change-dp.yml/badge.svg)](https://github.com/mishal-scet/Instagram-dp/actions/workflows/change-dp.yml)
-[![Last Activity](https://img.shields.io/github/last-commit/mishal-scet/Instagram-dp/main?label=Last%20Activity&style=flat-square&color=green)](https://github.com/mishal-scet/Instagram-dp/commits/main)
 
 </div>
 
-> **TL;DR**: Fork this repo, add your pics, set your credentials, enable GitHub Actions — your Instagram DP changes automatically every 3-4 hours. You look active while doing nothing.
+> Fork this repo, drop your pics, run one command — and your Instagram DP rotates on autopilot every few hours. You'll look active while doing absolutely nothing. Peak efficiency.
 
-## Quick Setup
+## Setup
+
+Five steps. Less effort than choosing an Instagram filter.
 
 ```
-1. Fork → 2. Add pics → 3. Set secrets → 4. Enable Actions → 5. Done
+1. Fork → 2. Add pics → 3. Create session → 4. Add secrets → 5. Enable Actions
 ```
 
-### 1. Fork the Repo
+### 1. Fork this repo
 
-Hit the **Fork** button at the top right. That's your copy now.
+Hit that **Fork** button ↗️ — you now own a bot. Congrats.
 
-### 2. Add Your Images
+### 2. Add your images
 
-Drop your pictures into `assets/images/`. Name them with numbers — the bot cycles through them in order.
-
+Drop them into `assets/images/`:
 ```
 assets/images/
 ├── 1.png
 ├── 2.png
-├── 3.jpg     ← png, jpg, jpeg all work
 ├── ...
 └── 11.png
 ```
+Name them `1.png`, `2.png`, etc. The bot sorts numerically — don't get creative with filenames, it won't appreciate it.
 
-Keep the naming simple: `1.png`, `2.png`, etc. The bot sorts by the number in the filename.
+### 3. Create a session from your local machine
 
-### 3. Generate Your Session (Important)
-
-Instagram blocks logins from GitHub's shared IPs. You need to create a session from your own machine first:
+This is the important part. Instagram gets suspicious when a login comes from a random cloud server in Virginia. So we log in once from **your actual network** and save the session.
 
 ```bash
+cd src
 pip install instagrapi
-python src/create_session.py
+python create_session.py
 ```
 
-It will ask for your username/password, log in from your trusted IP, and print a base64 string.
+Then push it:
+```bash
+git add data/session.json
+git commit -m "add session"
+git push
+```
 
-### 4. Add Secrets
+GitHub Actions reuses this trusted session on every run — Instagram thinks it's still you on your couch. Because technically, it is.
 
-Go to **Settings → Secrets and variables → Actions → New repository secret** and add:
+### 4. Add secrets
 
-| Secret Name | Value |
-|---|---|
+**Settings → Secrets and variables → Actions** — add these two:
+
+| Secret | Value |
+|--------|-------|
 | `INSTA_USER` | Your Instagram username |
 | `INSTA_PASS` | Your Instagram password |
-| `INSTA_SESSION` | The base64 string from step 3 |
 
-The session secret is only needed for the first run. After that, the bot caches and reuses the session automatically.
+These are only used as a fallback if the session ever expires. Your secrets are encrypted by GitHub — nobody can see them, not even you (after saving).
 
 ### 5. Enable GitHub Actions
 
-Go to the **Actions** tab → Click **"I understand my workflows, go ahead and enable them"**
+**Actions tab → "I understand my workflows, go ahead and enable them"**
 
-### 6. That's It
+That's it. Go watch Netflix.
 
-The bot runs automatically every 2 hours. The built-in scheduler decides when to actually change the DP (every 3-4 hours with random variation).
-
-**Can't wait?** Go to **Actions → Update Instagram DP → Run workflow** and set `force_run` to `true`.
-
-## Customization
-
-Edit `data/config.json` to tweak the schedule:
-
-```json
-{
-  "timezone": "Asia/Kolkata",
-  "min_interval_hours": 3,
-  "max_interval_hours": 4,
-  "random_delay_minutes": 30,
-  "weekday_windows": [
-    { "start": "07:00", "end": "23:30" }
-  ],
-  "weekend_windows": [
-    { "start": "09:00", "end": "23:30" }
-  ],
-  "use_random_delays": true
-}
-```
-
-| Setting | What It Does |
-|---|---|
-| `timezone` | Your local timezone. Supports `"IST"`, `"EST"`, `"PST"`, `"Asia/Kolkata"`, `"UTC+5.5"`, etc. |
-| `min/max_interval_hours` | How long between DP changes (random value within this range) |
-| `random_delay_minutes` | Extra jitter added on top (±30 mins by default) |
-| `weekday_windows` | Hours when the bot is allowed to run on weekdays |
-| `weekend_windows` | Same, but for weekends |
-| `use_random_delays` | Set to `false` if you want exact intervals (not recommended) |
+---
 
 ## How It Works
 
-GitHub Actions triggers every 2 hours. The Python script then decides whether to actually change the DP based on the schedule.
+1. GitHub Actions wakes up every 4 hours
+2. Waits a random 0–45 minutes (so Instagram doesn't see a perfectly timed robot — because that's exactly what it is)
+3. Reuses the session you created locally — no suspicious cloud logins
+4. Changes your DP to the next image in the rotation
+5. Saves the updated session and index, commits, goes back to sleep
 
-**Why not just use a cron schedule directly?** Because changing your DP at exactly 00:00, 03:00, 06:00 every day looks robotic. This bot adds randomness so it feels natural.
+The bot cycles through all your images in order and loops back to the start. It's not complicated, and that's the point.
 
-**What happens on each run:**
+### Project structure
 
-1. **Schedule check** — Is it time to change? If not, skip.
-2. **Session login** — Reuses your saved Instagram session (no fresh login every time). Follows [instagrapi best practices](https://subzeroid.github.io/instagrapi/usage-guide/best-practices.html) — same device UUIDs, request delays, session persistence.
-3. **Change DP** — Picks the next image in rotation, uploads it. Has automatic retry if Instagram is flaky.
-4. **Update state** — Saves the new index and schedules the next run.
+```
+src/main.py             — The script that does the thing (~100 lines)
+src/create_session.py   — Run once locally to create a trusted session
+data/index.txt          — Tracks which image is next
+data/session.json       — Your Instagram session (created from your network)
+```
 
-**Session handling:** Your Instagram session is cached between runs (via GitHub Actions cache), so the bot doesn't do a fresh login every time. This is important — Instagram flags repeated fresh logins as suspicious. The session stays alive across runs, just like keeping the app open on your phone.
-
-**Default schedule:**
-- **Weekdays**: 7:00 AM – 11:30 PM
-- **Weekends**: 9:00 AM – 11:30 PM
-- **Interval**: 3–4 hours + up to ±30 min random variation
-- Outside active hours, the bot sleeps automatically
+---
 
 ## Troubleshooting
 
 | Problem | Fix |
-|---|---|
-| Nothing happening | Check the **Actions** tab for errors (red X) |
-| IP blocked / login failed | Run `python src/create_session.py` locally and add the `INSTA_SESSION` secret |
-| Login failed (credentials) | Double-check `INSTA_USER` and `INSTA_PASS` in repo secrets |
-| Rate limited by Instagram | Wait it out. Instagram cools down after a few hours |
-| Wrong schedule | Edit `data/config.json` and push |
-| Want to trigger manually | Actions → Update Instagram DP → Run workflow → `force_run = true` |
-| Session expired after weeks | Re-run `create_session.py` locally to refresh the `INSTA_SESSION` secret |
+|---------|-----|
+| Nothing happening | Check the Actions tab for red X's |
+| Login failed | Double-check `INSTA_USER` / `INSTA_PASS` secrets |
+| Session expired | Run `python create_session.py` locally again and push |
+| Rate limited | Relax. Instagram will forgive you. Eventually. |
+| Still broken | Open an issue — or don't, I'm not your boss |
 
-## Project Structure
-
-```
-├── .github/workflows/change-dp.yml   ← GitHub Actions workflow
-├── assets/images/                     ← Your profile pictures
-├── data/
-│   ├── config.json                    ← Schedule settings
-│   ├── index.txt                      ← Current image position
-│   ├── last_run.txt                   ← When the last change happened
-│   └── next_scheduled.txt             ← When the next change is due
-└── src/
-    ├── main.py                        ← Core logic
-    ├── time_manager.py                ← Scheduling engine
-    ├── create_session.py              ← Run locally to generate session
-    └── requirements.txt               ← Python dependencies
-```
-
-`data/session.json` (Instagram session) is cached securely via GitHub Actions and excluded from the repo via `.gitignore`.
+---
 
 <div align="center">
 
-**Fork it. Set it. Forget it.**
+**Built with** [instagrapi](https://github.com/adw0rd/instagrapi) — the unofficial Instagram API that actually works.
 
-Built with [instagrapi](https://github.com/subzeroid/instagrapi)
+MIT License · Made by [Mishal](https://github.com/mishal-scet)
 
 </div>
 
