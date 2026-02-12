@@ -17,7 +17,8 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Random delay (anti-detection)
+      - name: Random delay (anti-detection, skipped on manual runs)
+        if: github.event_name == 'schedule'
         run: |
           DELAY=$((RANDOM % 2700))
           echo "Sleeping ${DELAY}s before running..."
