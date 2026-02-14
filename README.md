@@ -35,26 +35,7 @@ assets/images/
 ```
 Name them `1.png`, `2.png`, etc. The bot sorts numerically — don't get creative with filenames, it won't appreciate it.
 
-### 3. Create a session from your local machine
-
-This is the important part. Instagram gets suspicious when a login comes from a random cloud server in Virginia. So we log in once from **your actual network** and save the session.
-
-```bash
-cd src
-pip install instagrapi
-python create_session.py
-```
-
-Then push it:
-```bash
-git add data/session.json
-git commit -m "add session"
-git push
-```
-
-GitHub Actions reuses this trusted session on every run — Instagram thinks it's still you on your couch. Because technically, it is.
-
-### 4. Add secrets
+### 3. Add secrets
 
 **Settings → Secrets and variables → Actions** — add these two:
 
@@ -63,7 +44,42 @@ GitHub Actions reuses this trusted session on every run — Instagram thinks it'
 | `INSTA_USER` | Your Instagram username |
 | `INSTA_PASS` | Your Instagram password |
 
-These are only used as a fallback if the session ever expires. Your secrets are encrypted by GitHub — nobody can see them, not even you (after saving).
+These are used for session recovery if the session ever expires. Your secrets are encrypted by GitHub — nobody can see them, not even you (after saving).
+
+### 4. Create a session from your local machine
+
+This is the important part. Instagram gets suspicious when a login comes from a random cloud server in Virginia. So we log in **once** from **your home network** and save the session.
+
+```bash
+cd src
+pip install instagrapi
+```
+
+**Option A — Username & password (simplest)**
+```bash
+python create_session.py <username> <password>
+```
+
+**Option B — Browser session ID (if password login is blocked)**
+
+1. Log in to [instagram.com](https://instagram.com) in your browser
+2. Open DevTools: `F12` → **Application** → **Cookies** → `instagram.com`
+3. Copy the value of the `sessionid` cookie
+4. Run:
+```bash
+python create_session.py --sessionid <paste_session_id_here>
+```
+
+Either way, you should see **"Login successful!"**. Then push the session:
+```bash
+git add data/session.json
+git commit -m "add session"
+git push
+```
+
+GitHub Actions reuses this trusted session on every run — Instagram thinks it's still you on your couch. Because technically, it is.
+
+> **Session expired?** Just re-run `create_session.py` from your local machine and push again. GitHub Actions will also try to re-login using your secrets as a fallback, preserving device UUIDs so Instagram doesn't freak out.
 
 ### 5. Enable GitHub Actions
 
@@ -77,7 +93,7 @@ That's it. Go watch Netflix.
 
 1. GitHub Actions wakes up every 4 hours
 2. Waits a random 0–45 minutes (so Instagram doesn't see a perfectly timed robot — because that's exactly what it is)
-3. Reuses the session you created locally — no suspicious cloud logins
+3. Loads your session → validates it → falls back to credential re-login preserving device UUIDs if expired
 4. Changes your DP to the next image in the rotation
 5. Saves the updated session and index, commits, goes back to sleep
 
@@ -86,7 +102,7 @@ The bot cycles through all your images in order and loops back to the start. It'
 ### Project structure
 
 ```
-src/main.py             — The script that does the thing (~100 lines)
+src/main.py             — The script that does the thing
 src/create_session.py   — Run once locally to create a trusted session
 data/index.txt          — Tracks which image is next
 data/session.json       — Your Instagram session (created from your network)
@@ -99,8 +115,10 @@ data/session.json       — Your Instagram session (created from your network)
 | Problem | Fix |
 |---------|-----|
 | Nothing happening | Check the Actions tab for red X's |
-| Login failed | Double-check `INSTA_USER` / `INSTA_PASS` secrets |
-| Session expired | Run `python create_session.py` locally again and push |
+| `BadPassword` / IP blacklist | Run `create_session.py` from your **home/mobile** network — cloud & VPN IPs get flagged |
+| `unsupported_version` | Already handled — the bot uses Instagram v410 user-agent |
+| Session expired | Re-run `create_session.py` locally and push, or let the bot try credential fallback |
+| `challenge_required` | Log in to Instagram on your phone/browser, approve any prompts, then re-run `create_session.py` |
 | Rate limited | Relax. Instagram will forgive you. Eventually. |
 | Still broken | Open an issue — or don't, I'm not your boss |
 
