@@ -8,7 +8,7 @@
         "request_id": "3c7561fd-3569-48dd-9cda-04580adece88",
         "tray_session_id": "f9244532-a202-4421-844d-f0d9ebff1308"
     },
-    "mid": null,
+    "mid": "aZCNjgABAAHeoM0gUe3YjWfdq7uc",
     "ig_u_rur": null,
     "ig_www_claim": null,
     "authorization_data": {
@@ -32,7 +32,7 @@
         "cpu": "qcom",
         "version_code": "314665256"
     },
-    "user_agent": "Instagram 269.0.0.18.75 Android (26/8.0.0; 480dpi; 1080x1920; OnePlus; 6T Dev; devitron; qcom; en_US; 314665256)",
+    "user_agent": "Instagram 410.0.0.0.96 Android (33/13; 480dpi; 1080x2400; xiaomi; M2007J20CG; surya; qcom; en_US; 641123490)",
     "country": "US",
     "country_code": 1,
     "locale": "en_US",
