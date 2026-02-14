@@ -22,6 +22,19 @@ from instagrapi import Client
 
 SESSION_FILE = Path(__file__).parent.parent / "data" / "session.json"
 
+# Instagram v410 user-agent — required since Feb 2026 (#2369)
+USER_AGENT = (
+    "Instagram 410.0.0.0.96 Android (33/13; 480dpi; 1080x2400; "
+    "xiaomi; M2007J20CG; surya; qcom; en_US; 641123490)"
+)
+
+
+def _make_client() -> Client:
+    cl = Client()
+    cl.set_user_agent(USER_AGENT)
+    cl.delay_range = [1, 3]
+    return cl
+
 
 def main():
     if len(sys.argv) < 2:
@@ -31,7 +44,7 @@ def main():
         raise SystemExit(1)
 
     SESSION_FILE.parent.mkdir(exist_ok=True)
-    cl = Client()
+    cl = _make_client()
 
     if sys.argv[1] == "--sessionid":
         if len(sys.argv) != 3:
@@ -39,20 +52,18 @@ def main():
             raise SystemExit(1)
 
         session_id = sys.argv[2]
-        # URL-decode if needed
         if "%3A" in session_id:
             from urllib.parse import unquote
             session_id = unquote(session_id)
 
         print("=== Instagram Session Creator (via browser session) ===\n")
 
-        # Try full login first, fall back to manual session save
         try:
             print("Logging in with session ID...")
             cl.login_by_sessionid(session_id)
         except Exception as e:
             print(f"API login failed ({e.__class__.__name__}), saving session manually...")
-            # Manually build session — GitHub Actions will use it from a clean IP
+            # Build minimal session — GitHub Actions validates from a clean IP
             cl.set_settings({
                 "authorization_data": {
                     "ds_user_id": session_id.split(":")[0],
@@ -64,9 +75,10 @@ def main():
                 },
                 "uuids": {},
             })
+            cl.set_user_agent(USER_AGENT)
             cl.dump_settings(str(SESSION_FILE))
             print(f"\nSession saved to: {SESSION_FILE}")
-            print("(Session was saved without validation — GitHub Actions will validate it from a clean IP)")
+            print("(Saved without validation — GitHub Actions will validate from its IP)")
             print("\n  git add data/session.json && git commit -m 'add session' && git push")
             return
 
@@ -78,6 +90,14 @@ def main():
         username, password = sys.argv[1], sys.argv[2]
         print(f"=== Instagram Session Creator ===")
         print(f"User: {username}\n")
+
+        # If a previous session exists, reuse its UUIDs (anti-detection)
+        if SESSION_FILE.exists():
+            print("Found existing session — reusing device UUIDs...")
+            session = cl.load_settings(str(SESSION_FILE))
+            cl.set_settings(session)
+            cl.set_user_agent(USER_AGENT)
+
         print("Logging in with credentials...")
         cl.login(username, password)
 

@@ -19,31 +19,82 @@ DATA_FOLDER = REPO_ROOT / "data"
 INDEX_FILE = DATA_FOLDER / "index.txt"
 SESSION_FILE = DATA_FOLDER / "session.json"
 
+# Instagram v410 user-agent — required since Feb 2026 (#2369)
+# Old versions get "unsupported_version" / checkpoint_required
+USER_AGENT = (
+    "Instagram 410.0.0.0.96 Android (33/13; 480dpi; 1080x2400; "
+    "xiaomi; M2007J20CG; surya; qcom; en_US; 641123490)"
+)
+
+
+def _make_client() -> Client:
+    """Create a Client with best-practice settings."""
+    cl = Client()
+    cl.set_user_agent(USER_AGENT)
+    cl.delay_range = [1, 3]  # mimic human pacing between API calls
+    return cl
+
 
 def login_user() -> Client:
-    """Reuse the local session if valid; only fall back to password login."""
-    cl = Client()
+    """
+    Best-practice login flow from instagrapi docs:
+    1. Load saved session → set_settings → login (reuses session, no fresh auth)
+    2. Validate with get_timeline_feed()
+    3. If session expired: preserve device UUIDs, re-login with credentials
+    4. If no session at all: full credential login
+    """
+    cl = _make_client()
 
-    # Try saved session first (created from your home IP)
+    session = None
     if SESSION_FILE.exists():
-        logger.info("Loading saved session...")
-        cl.load_settings(str(SESSION_FILE))
-        try:
-            cl.get_timeline_feed()  # test if session is still alive
-            logger.info("Session is valid — no fresh login needed")
-            return cl
-        except LoginRequired:
-            logger.warning("Saved session expired")
-        except Exception as e:
-            logger.warning(f"Session check failed: {e}")
+        session = cl.load_settings(str(SESSION_FILE))
 
-    # Fallback: full login (will use cloud IP — may trigger verification)
-    logger.info("Logging in with credentials...")
-    if not USERNAME or not PASSWORD:
-        raise SystemExit("No valid session and no credentials — run create_session.py locally first")
-    cl = Client()
-    cl.login(USERNAME, PASSWORD)
-    cl.dump_settings(str(SESSION_FILE))
+    login_via_session = False
+    login_via_pw = False
+
+    if session:
+        try:
+            cl.set_settings(session)
+            cl.set_user_agent(USER_AGENT)  # re-apply after set_settings
+            cl.login(USERNAME, PASSWORD)   # reuses session — no actual HTTP login
+
+            # validate session is alive
+            try:
+                cl.get_timeline_feed()
+            except LoginRequired:
+                logger.warning("Session expired — re-logging with same device UUIDs")
+                old_session = cl.get_settings()
+
+                # preserve device fingerprint across logins (anti-detection)
+                cl.set_settings({})
+                cl.set_uuids(old_session["uuids"])
+                cl.set_user_agent(USER_AGENT)
+
+                cl.login(USERNAME, PASSWORD)
+
+            login_via_session = True
+        except Exception as e:
+            logger.warning(f"Session login failed: {e}")
+
+    if not login_via_session:
+        try:
+            if not USERNAME or not PASSWORD:
+                raise SystemExit(
+                    "No valid session and no credentials — "
+                    "run create_session.py locally first"
+                )
+            logger.info("Logging in with credentials (no session)...")
+            if cl.login(USERNAME, PASSWORD):
+                login_via_pw = True
+        except SystemExit:
+            raise
+        except Exception as e:
+            logger.error(f"Credential login failed: {e}")
+
+    if not login_via_session and not login_via_pw:
+        raise SystemExit("Could not login via session or credentials")
+
+    logger.info("Logged in successfully")
     return cl
 
 
