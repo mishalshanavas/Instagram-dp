@@ -16,7 +16,7 @@
 Five steps. Less effort than choosing an Instagram filter.
 
 ```
-1. Fork → 2. Add pics → 3. Create session → 4. Add secrets → 5. Enable Actions
+1. Fork → 2. Add pics → 3. Add secrets → 4. Create session → 5. Enable Actions
 ```
 
 ### 1. Fork this repo
@@ -91,13 +91,14 @@ That's it. Go watch Netflix.
 
 ## How It Works
 
-1. GitHub Actions wakes up every 4 hours
-2. Waits a random 0–45 minutes (so Instagram doesn't see a perfectly timed robot — because that's exactly what it is)
-3. Loads your session → validates it → falls back to credential re-login preserving device UUIDs if expired
-4. Changes your DP to the next image in the rotation
-5. Saves the updated session and index, commits, goes back to sleep
+1. GitHub Actions checks **every hour** if it's time to run
+2. Each run schedules the **next** run at a random time 3–7 hours from now (stored in `data/next_run.txt`)
+3. If it's not time yet, the workflow exits instantly — no Python setup, no API calls, no wasted minutes
+4. When it is time: loads your session → validates it → falls back to credential re-login preserving device UUIDs if expired
+5. Changes your DP to the next image in the rotation
+6. Saves everything (session, index, next schedule), commits, goes back to sleep
 
-The bot cycles through all your images in order and loops back to the start. It's not complicated, and that's the point.
+The intervals between runs are truly random — not "every 4 hours + jitter" but genuinely unpredictable gaps. Instagram sees a human who changes their DP at weird hours, because that's what humans do.
 
 ### Project structure
 
@@ -106,6 +107,7 @@ src/main.py             — The script that does the thing
 src/create_session.py   — Run once locally to create a trusted session
 data/index.txt          — Tracks which image is next
 data/session.json       — Your Instagram session (created from your network)
+data/next_run.txt       — Unix timestamp of next scheduled run
 ```
 
 ---

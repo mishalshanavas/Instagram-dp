@@ -2,8 +2,8 @@ name: Update Instagram DP
 
 on:
   schedule:
-    - cron: "20 */4 * * *"    # every 4 hours at :20
-  workflow_dispatch:            # manual trigger
+    - cron: "0 * * * *"       # check every hour if it's time to run
+  workflow_dispatch:            # manual trigger — always runs immediately
 
 permissions:
   contents: write
@@ -17,32 +17,60 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Random delay (anti-detection, skipped on manual runs)
+      - name: Check if it's time to run
+        id: schedule
         if: github.event_name == 'schedule'
         run: |
-          DELAY=$((RANDOM % 2700))
-          echo "Sleeping ${DELAY}s before running..."
-          sleep $DELAY
+          if [ ! -f data/next_run.txt ]; then
+            echo "No schedule found — running now"
+            echo "should_run=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          NEXT_RUN=$(cat data/next_run.txt)
+          NOW=$(date +%s)
+          if [ "$NOW" -ge "$NEXT_RUN" ]; then
+            echo "It's time! (was scheduled for $(date -ud @$NEXT_RUN '+%H:%M UTC'))"
+            echo "should_run=true" >> $GITHUB_OUTPUT
+          else
+            echo "Not yet — next run at $(date -ud @$NEXT_RUN '+%Y-%m-%d %H:%M UTC')"
+            echo "should_run=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Set up Python
+        if: github.event_name != 'schedule' || steps.schedule.outputs.should_run == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
       - name: Install dependencies
+        if: github.event_name != 'schedule' || steps.schedule.outputs.should_run == 'true'
         run: pip install -r src/requirements.txt
 
       - name: Change profile picture
+        if: github.event_name != 'schedule' || steps.schedule.outputs.should_run == 'true'
         env:
           USERNAME: ${{ secrets.INSTA_USER }}
           PASSWORD: ${{ secrets.INSTA_PASS }}
         run: cd src && python main.py
 
+      - name: Schedule next run
+        if: github.event_name != 'schedule' || steps.schedule.outputs.should_run == 'true'
+        run: |
+          # Random interval: 2–5 hours (7200–18000 seconds)
+          # Guarantees 3+ DP changes per day during waking hours
+          INTERVAL=$((RANDOM % 10800 + 7200))
+          NEXT=$(( $(date +%s) + INTERVAL ))
+          echo "$NEXT" > data/next_run.txt
+          HOURS=$((INTERVAL / 3600))
+          MINS=$(( (INTERVAL % 3600) / 60 ))
+          echo "Next run in ${HOURS}h ${MINS}m — $(date -ud @$NEXT '+%Y-%m-%d %H:%M UTC')"
+
       - name: Commit changes
+        if: github.event_name != 'schedule' || steps.schedule.outputs.should_run == 'true'
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/index.txt data/session.json 2>/dev/null || true
+          git add data/index.txt data/session.json data/next_run.txt 2>/dev/null || true
           git diff --staged --quiet && exit 0
           git commit -m "update dp [skip ci]"
           git push
