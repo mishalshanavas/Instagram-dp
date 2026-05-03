@@ -36,6 +36,29 @@ jobs:
             echo "should_run=false" >> $GITHUB_OUTPUT
           fi
 
+      - name: Check proxy health
+        id: proxycheck
+        if: github.event_name != 'schedule' || steps.schedule.outputs.should_run == 'true'
+        env:
+          PROXY_URL: ${{ secrets.PROXY_URL }}
+        run: |
+          # Squid responds with HTTP 400 (ERR_INVALID_URL) to a bare GET /.
+          # Cloudflare returns 502/503 when the tunnel is broken — never 400.
+          # Checking for exactly 400 confirms Squid itself is alive and reachable.
+          if [ -n "$PROXY_URL" ]; then
+            STATUS=$(curl -s --max-time 5 -o /dev/null -w "%{http_code}" "$PROXY_URL")
+            if [ "$STATUS" = "400" ]; then
+              echo "Proxy is up (HTTP $STATUS) — routing traffic through home Squid"
+              echo "proxy_url=$PROXY_URL" >> $GITHUB_OUTPUT
+            else
+              echo "Proxy check failed (HTTP $STATUS) — running direct (no proxy)"
+              echo "proxy_url=" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "PROXY_URL not configured — running direct (no proxy)"
+            echo "proxy_url=" >> $GITHUB_OUTPUT
+          fi
+
       - name: Set up Python
         if: github.event_name != 'schedule' || steps.schedule.outputs.should_run == 'true'
         uses: actions/setup-python@v5
@@ -49,8 +72,9 @@ jobs:
       - name: Change profile picture
         if: github.event_name != 'schedule' || steps.schedule.outputs.should_run == 'true'
         env:
-          USERNAME: ${{ secrets.INSTA_USER }}
-          PASSWORD: ${{ secrets.INSTA_PASS }}
+          INSTA_USER: ${{ secrets.INSTA_USER }}
+          INSTA_PASS: ${{ secrets.INSTA_PASS }}
+          PROXY_URL: ${{ steps.proxycheck.outputs.proxy_url }}
         run: cd src && python main.py
 
       - name: Schedule next run

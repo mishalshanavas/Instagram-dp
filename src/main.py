@@ -10,8 +10,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-USERNAME = os.getenv("USERNAME")
-PASSWORD = os.getenv("PASSWORD")
+USERNAME = os.getenv("INSTA_USER")
+PASSWORD = os.getenv("INSTA_PASS")
+PROXY_URL = os.getenv("PROXY_URL")  # e.g. http://192.168.1.x:3128 (Squid)
 
 REPO_ROOT = Path(__file__).parent.parent
 IMAGE_FOLDER = REPO_ROOT / "assets" / "images"
@@ -32,6 +33,15 @@ def _make_client() -> Client:
     cl = Client()
     cl.set_user_agent(USER_AGENT)
     cl.delay_range = [1, 3]  # mimic human pacing between API calls
+
+    if PROXY_URL:
+        # Squid is an HTTP proxy; it handles HTTPS via CONNECT tunneling.
+        # Both schemes must point to the same http:// proxy URL.
+        proxies = {"http": PROXY_URL, "https": PROXY_URL}
+        cl.private.proxies = proxies
+        cl.public.proxies = proxies
+        logger.info(f"Proxy configured: {PROXY_URL}")
+
     return cl
 
 

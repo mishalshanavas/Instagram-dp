@@ -42,10 +42,20 @@ This is the important part. Instagram gets suspicious when a login comes from a 
 ```bash
 cd src
 pip install instagrapi
-python create_session.py
 ```
 
-Then push it:
+**Option A — Browser session ID (recommended, no password needed):**
+```bash
+python create_session.py --sessionid <your_sessionid>
+```
+Get your session ID: F12 → Application → Cookies → `instagram.com` → copy `sessionid` value.
+
+**Option B — Username & password:**
+```bash
+python create_session.py <username> <password>
+```
+
+Then push the saved session:
 ```bash
 git add data/session.json
 git commit -m "add session"
@@ -56,14 +66,15 @@ GitHub Actions reuses this trusted session on every run — Instagram thinks it'
 
 ### 4. Add secrets
 
-**Settings → Secrets and variables → Actions** — add these two:
+**Settings → Secrets and variables → Actions** — add these:
 
-| Secret | Value |
-|--------|-------|
-| `INSTA_USER` | Your Instagram username |
-| `INSTA_PASS` | Your Instagram password |
+| Secret | Required | Value |
+|--------|----------|-------|
+| `INSTA_USER` | Yes | Your Instagram username |
+| `INSTA_PASS` | Yes | Your Instagram password |
+| `PROXY_URL` | No | Your Squid proxy URL (see below) |
 
-These are only used as a fallback if the session ever expires. Your secrets are encrypted by GitHub — nobody can see them, not even you (after saving).
+`INSTA_USER` and `INSTA_PASS` are only used as a fallback if the session ever expires. Your secrets are encrypted by GitHub — nobody can see them, not even you (after saving).
 
 ### 5. Enable GitHub Actions
 
@@ -75,22 +86,37 @@ That's it. Go watch Netflix.
 
 ## How It Works
 
-1. GitHub Actions wakes up every 4 hours
-2. Waits a random 0–45 minutes (so Instagram doesn't see a perfectly timed robot — because that's exactly what it is)
+1. GitHub Actions wakes up **every hour** to check if it's time to run
+2. Compares current time against `data/next_run.txt` — skips the run if not due yet
 3. Reuses the session you created locally — no suspicious cloud logins
 4. Changes your DP to the next image in the rotation
-5. Saves the updated session and index, commits, goes back to sleep
+5. Picks a **random 2–5 hour interval** for the next run, saves it, commits everything, goes back to sleep
 
 The bot cycles through all your images in order and loops back to the start. It's not complicated, and that's the point.
 
 ### Project structure
 
 ```
-src/main.py             — The script that does the thing (~100 lines)
+src/main.py             — The script that does the thing
 src/create_session.py   — Run once locally to create a trusted session
 data/index.txt          — Tracks which image is next
 data/session.json       — Your Instagram session (created from your network)
+data/next_run.txt       — Unix timestamp of the next scheduled run
 ```
+
+---
+
+## Optional: Home Proxy
+
+If you have a **Squid proxy** running at home (e.g. on a Raspberry Pi), you can route all Instagram traffic through your home IP. This makes every request look like it's coming from the same network where the session was created.
+
+Add a `PROXY_URL` secret:
+
+| Secret | Example value |
+|--------|---------------|
+| `PROXY_URL` | `https://proxy.yourdomain.com` |
+
+The workflow checks if the proxy is reachable before each run. If your server is down or the secret is not set, the bot falls back to a direct connection automatically — no failures, no manual intervention needed.
 
 ---
 
