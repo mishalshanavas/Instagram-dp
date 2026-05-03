@@ -46,7 +46,7 @@ jobs:
           # Cloudflare returns 502/503 when the tunnel is broken — never 400.
           # Checking for exactly 400 confirms Squid itself is alive and reachable.
           if [ -n "$PROXY_URL" ]; then
-            STATUS=$(curl -s --max-time 5 -o /dev/null -w "%{http_code}" "$PROXY_URL")
+            STATUS=$(curl -s --max-time 5 -o /dev/null -w "%{http_code}" "$PROXY_URL" 2>/dev/null) || STATUS="000"
             if [ "$STATUS" = "400" ]; then
               echo "Proxy is up (HTTP $STATUS) — routing traffic through home Squid"
               echo "proxy_url=$PROXY_URL" >> $GITHUB_OUTPUT
