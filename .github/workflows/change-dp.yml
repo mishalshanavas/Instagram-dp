@@ -42,11 +42,12 @@ jobs:
         env:
           PROXY_URL: ${{ secrets.PROXY_URL }}
         run: |
-          # Route a test request THROUGH the proxy to verify it's working.
-          # gstatic returns 204 when reachable — works for both direct Squid and Cloudflare tunnels.
+          # Squid responds with HTTP 400 (ERR_INVALID_URL) to a bare GET /.
+          # Cloudflare returns 502/503 when the tunnel is broken — never 400.
+          # Checking for exactly 400 confirms Squid itself is alive and reachable.
           if [ -n "$PROXY_URL" ]; then
-            STATUS=$(curl -s -x "$PROXY_URL" --max-time 10 -o /dev/null -w "%{http_code}" "http://www.gstatic.com/generate_204" 2>/dev/null) || STATUS="000"
-            if [ "$STATUS" = "204" ]; then
+            STATUS=$(curl -s --max-time 10 -o /dev/null -w "%{http_code}" "$PROXY_URL" 2>/dev/null) || STATUS="000"
+            if [ "$STATUS" = "400" ]; then
               echo "Proxy is up (HTTP $STATUS) — routing traffic through proxy"
               echo "proxy_url=$PROXY_URL" >> $GITHUB_OUTPUT
             else
