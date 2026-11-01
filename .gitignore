@@ -2,3 +2,5 @@ __pycache__/
 *.pyc
 .venv/
 .env
+data/session.json
+data/session.json.tmp

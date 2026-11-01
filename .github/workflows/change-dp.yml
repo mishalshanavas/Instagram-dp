@@ -2,99 +2,116 @@ name: Update Instagram DP
 
 on:
   schedule:
-    - cron: "0 * * * *"       # check every hour if it's time to run
-  workflow_dispatch:            # manual trigger — always runs immediately
+    - cron: '17 * * * *'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Check setup first, or change your picture now'
+        type: choice
+        options:
+          - check
+          - rotate
+        default: check
 
 permissions:
   contents: write
 
+concurrency:
+  group: instagram-dp
+  cancel-in-progress: false
+
 jobs:
   update-dp:
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-
+    timeout-minutes: 10
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Check if it's time to run
+      - name: Check schedule
         id: schedule
-        if: github.event_name == 'schedule'
-        run: |
-          if [ ! -f data/next_run.txt ]; then
-            echo "No schedule found — running now"
-            echo "should_run=true" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-          NEXT_RUN=$(cat data/next_run.txt)
-          NOW=$(date +%s)
-          if [ "$NOW" -ge "$NEXT_RUN" ]; then
-            echo "It's time! (was scheduled for $(date -ud @$NEXT_RUN '+%H:%M UTC'))"
-            echo "should_run=true" >> $GITHUB_OUTPUT
-          else
-            echo "Not yet — next run at $(date -ud @$NEXT_RUN '+%Y-%m-%d %H:%M UTC')"
-            echo "should_run=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Check proxy health
-        id: proxycheck
-        if: github.event_name != 'schedule' || steps.schedule.outputs.should_run == 'true'
         env:
-          PROXY_URL: ${{ secrets.PROXY_URL }}
+          EVENT_NAME: ${{ github.event_name }}
+        shell: bash
         run: |
-          # Squid responds with HTTP 400 (ERR_INVALID_URL) to a bare GET /.
-          # Cloudflare returns 502/503 when the tunnel is broken — never 400.
-          # Checking for exactly 400 confirms Squid itself is alive and reachable.
-          if [ -n "$PROXY_URL" ]; then
-            STATUS=$(curl -s --max-time 10 -o /dev/null -w "%{http_code}" "$PROXY_URL" 2>/dev/null) || STATUS="000"
-            if [ "$STATUS" = "400" ]; then
-              echo "Proxy is up (HTTP $STATUS) — routing traffic through proxy"
-              echo "proxy_url=$PROXY_URL" >> $GITHUB_OUTPUT
+          SHOULD_RUN=true
+          if [[ "$EVENT_NAME" == schedule && -f data/next_run.txt ]]; then
+            NEXT_RUN=$(cat data/next_run.txt)
+            if [[ "$NEXT_RUN" =~ ^[0-9]{1,12}$ ]]; then
+              if (( $(date +%s) < 10#$NEXT_RUN )); then
+                SHOULD_RUN=false
+              fi
             else
-              echo "Proxy check failed (HTTP $STATUS) — running direct (no proxy)"
-              echo "proxy_url=" >> $GITHUB_OUTPUT
+              echo 'Invalid schedule; running now to repair it.'
             fi
-          else
-            echo "PROXY_URL not configured — running direct (no proxy)"
-            echo "proxy_url=" >> $GITHUB_OUTPUT
+          fi
+          echo "should_run=$SHOULD_RUN" >> "$GITHUB_OUTPUT"
+
+      - name: Check setup secret
+        if: steps.schedule.outputs.should_run == 'true'
+        env:
+          INSTA_SESSION: ${{ secrets.INSTA_SESSION }}
+        run: |
+          if [ -z "$INSTA_SESSION" ]; then
+            echo '::error::Setup needed: run python setup.py locally, then add INSTA_SESSION under Settings → Secrets and variables → Actions.'
+            exit 1
           fi
 
-      - name: Set up Python
-        if: github.event_name != 'schedule' || steps.schedule.outputs.should_run == 'true'
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
+        if: steps.schedule.outputs.should_run == 'true'
         with:
-          python-version: "3.11"
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: src/requirements.txt
 
       - name: Install dependencies
-        if: github.event_name != 'schedule' || steps.schedule.outputs.should_run == 'true'
-        run: pip install -r src/requirements.txt
+        if: steps.schedule.outputs.should_run == 'true'
+        run: python -m pip install -r src/requirements.txt
 
-      - name: Change profile picture
-        if: github.event_name != 'schedule' || steps.schedule.outputs.should_run == 'true'
+      - name: Validate setup or rotate picture
+        if: steps.schedule.outputs.should_run == 'true'
         env:
-          INSTA_USER: ${{ secrets.INSTA_USER }}
-          INSTA_PASS: ${{ secrets.INSTA_PASS }}
-          PROXY_URL: ${{ steps.proxycheck.outputs.proxy_url }}
-        run: cd src && python main.py
-
-      - name: Schedule next run
-        if: github.event_name != 'schedule' || steps.schedule.outputs.should_run == 'true'
+          INSTA_SESSION: ${{ secrets.INSTA_SESSION }}
+          PROXY_URL: ${{ secrets.PROXY_URL }}
+          RUN_MODE: ${{ inputs.mode }}
         run: |
-          # Random interval: 2–5 hours (7200–18000 seconds)
-          # Guarantees 3+ DP changes per day during waking hours
-          INTERVAL=$((RANDOM % 10800 + 7200))
-          NEXT=$(( $(date +%s) + INTERVAL ))
-          echo "$NEXT" > data/next_run.txt
-          HOURS=$((INTERVAL / 3600))
-          MINS=$(( (INTERVAL % 3600) / 60 ))
-          echo "Next run in ${HOURS}h ${MINS}m — $(date -ud @$NEXT '+%Y-%m-%d %H:%M UTC')"
+          if [ "$RUN_MODE" = check ]; then
+            python src/main.py --check
+          else
+            python src/main.py
+          fi
 
-      - name: Commit changes
-        if: github.event_name != 'schedule' || steps.schedule.outputs.should_run == 'true'
+      - name: Save next run and image position
+        if: steps.schedule.outputs.should_run == 'true' && inputs.mode != 'check'
+        shell: bash
         run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/index.txt data/session.json data/next_run.txt 2>/dev/null || true
+          python - <<'PY'
+          import random
+          import time
+          from pathlib import Path
+          Path('data/next_run.txt').write_text(str(int(time.time()) + random.randint(7200, 18000)))
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git add data/index.txt data/next_run.txt
           git diff --staged --quiet && exit 0
-          git commit -m "update dp [skip ci]"
+          git commit -m 'Update picture rotation state [skip ci]'
+          git pull --rebase
           git push
+
+      - name: Show result
+        if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
+          RUN_MODE: ${{ inputs.mode }}
+          SHOULD_RUN: ${{ steps.schedule.outputs.should_run }}
+        run: |
+          if [ "$JOB_STATUS" != success ]; then
+            echo 'Setup/update failed. Read the failed step above. For an expired session, rerun python setup.py and replace INSTA_SESSION.' >> "$GITHUB_STEP_SUMMARY"
+          elif [ "$SHOULD_RUN" = false ]; then
+            echo 'Skipped: the next picture change is not due yet.' >> "$GITHUB_STEP_SUMMARY"
+          elif [ "$RUN_MODE" = check ]; then
+            echo 'Setup validated. No profile picture was changed. Run again with mode rotate, or wait for the schedule.' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'Profile picture updated. The next change is due in 2–5 hours, checked hourly.' >> "$GITHUB_STEP_SUMMARY"
+          fi

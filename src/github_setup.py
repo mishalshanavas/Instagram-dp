@@ -1,0 +1,246 @@
+"""GitHub CLI onboarding; never put session contents in command arguments."""
+import json
+import os
+from pathlib import Path
+import re
+import shutil
+import subprocess
+import sys
+
+
+def run_gh(args, **kwargs):
+    return subprocess.run(['gh', *args], env={**os.environ, 'GH_HOST': 'github.com'}, **kwargs)
+
+
+def ensure_gh():
+    if shutil.which('gh'):
+        return True
+    command = None
+    if sys.platform == 'win32' and shutil.which('winget'):
+        command = ['winget', 'install', '--id', 'GitHub.cli', '--exact', '--source', 'winget']
+    elif sys.platform == 'darwin' and shutil.which('brew'):
+        command = ['brew', 'install', 'gh']
+    elif sys.platform.startswith('linux'):
+        for manager, args in [('apt-get', ['install', '-y', 'gh']), ('dnf', ['install', '-y', 'gh']), ('pacman', ['-S', '--needed', 'github-cli'])]:
+            if shutil.which(manager):
+                command = [manager, *args]
+                if os.geteuid() != 0:
+                    if not shutil.which('sudo'):
+                        command = None
+                    else:
+                        command.insert(0, 'sudo')
+                break
+    if command:
+        print('GitHub CLI is missing. Installer: ' + ' '.join(command))
+        if input('Install it now? [Y/n]: ').strip().lower() not in ('n', 'no'):
+            result = subprocess.run(command)
+            if result.returncode == 0 and shutil.which('gh'):
+                return True
+            # Windows installers may update the registry PATH, not this process.
+            if sys.platform == 'win32':
+                folder = Path(os.environ.get('ProgramFiles', r'C:\Program Files')) / 'GitHub CLI'
+                if (folder / 'gh.exe').exists():
+                    os.environ['PATH'] = str(folder) + os.pathsep + os.environ.get('PATH', '')
+                    return True
+            print('Installation did not make gh available in this terminal.')
+    print('Install GitHub CLI from https://cli.github.com/, reopen your terminal, and run python setup.py --github-only.')
+    return False
+
+
+def manual_instructions(session_file, repo=''):
+    url = f'https://github.com/{repo}/settings/secrets/actions' if repo else 'your repository → Settings → Secrets and variables → Actions'
+    print(f'\nManual setup: open {url}')
+    print('Choose New repository secret. Name: INSTA_SESSION')
+    print(f'Copy the ENTIRE contents of {session_file} into the secret value. Never upload this file.')
+    print('Then open Actions → Update Instagram DP → Run workflow → check.')
+
+
+SOURCE_REPO = 'mishal-scet/Instagram-dp'
+
+
+def api_json(endpoint):
+    result = run_gh(['api', endpoint], capture_output=True, text=True)
+    if result.returncode:
+        raise ValueError('GitHub could not read repository metadata.')
+    return json.loads(result.stdout)
+
+
+def discover_repositories():
+    """Read every owned repository page and inspect provenance, not names."""
+    user = api_json('user')['login']
+    matches = []
+    page = 1
+    while True:
+        repositories = api_json(f'user/repos?affiliation=owner&per_page=100&page={page}')
+        for item in repositories:
+            if item['owner']['login'].casefold() != user.casefold():
+                continue
+            repo = api_json('repos/' + item['full_name'])
+            relations = {key: (repo.get(key) or {}).get('full_name', '').casefold()
+                         for key in ('parent', 'source', 'template_repository')}
+            source = SOURCE_REPO.casefold()
+            kind = None
+            if repo['full_name'].casefold() == source:
+                kind = 'source repository'
+            elif relations['template_repository'] == source:
+                kind = 'template copy'
+            elif source in (relations['parent'], relations['source']):
+                kind = 'fork'
+            if kind:
+                matches.append((repo['full_name'], kind, repo.get('archived', False)))
+        if len(repositories) < 100:
+            break
+        page += 1
+    return user, sorted(matches, key=lambda item: item[0].casefold())
+
+
+def create_repository(user):
+    source = api_json('repos/' + SOURCE_REPO)
+    if not source.get('is_template'):
+        print('The source is not enabled as a template. Its owner must enable Settings → Template repository.')
+        if input('Create a fork instead? [y/N]: ').strip().lower() not in ('y', 'yes'):
+            return None
+        result = run_gh(['repo', 'fork', 'github.com/' + SOURCE_REPO, '--clone=false'], capture_output=True, text=True)
+        if result.returncode:
+            print('Fork creation failed. Check your permissions or existing forks, then retry.')
+            return None
+        return user + '/' + SOURCE_REPO.split('/')[1]
+    while True:
+        name = input('New repository name [Instagram-dp]: ').strip() or 'Instagram-dp'
+        if re.fullmatch(r'[A-Za-z0-9_.-]+', name) and name not in ('.', '..'):
+            break
+        print('Use letters, numbers, dots, underscores, or hyphens.')
+    print('  1. Private (default)\n  2. Public')
+    visibility = input('Visibility [1]: ').strip() or '1'
+    if visibility not in ('1', '2'):
+        print('Invalid visibility; nothing was created.')
+        return None
+    repo = user + '/' + name
+    flag = '--private' if visibility == '1' else '--public'
+    print(f'Create {repo} from {SOURCE_REPO} ({flag[2:]})')
+    if input('Continue? [Y/n]: ').strip().lower() in ('n', 'no'):
+        return None
+    result = run_gh(['repo', 'create', repo, '--template', 'github.com/' + SOURCE_REPO, flag], capture_output=True, text=True)
+    if result.returncode:
+        print('Creation failed. The name may already exist, or your account may lack permission. Nothing was overwritten.')
+        return None
+    return repo
+
+
+def select_repository():
+    try:
+        print('Finding your forks and template copies...')
+        user, matches = discover_repositories()
+    except (OSError, ValueError, KeyError):
+        print('Could not finish repository discovery; this does not mean you have no copies.')
+        user, matches = None, []
+    while True:
+        if user:
+            print(f'\nGitHub account: {user}')
+            if not matches:
+                print('No matching forks or template copies found in this account.')
+        default = next((str(i) for i, item in enumerate(matches, 1) if not item[2]),
+                       'N' if user else '0')
+        for number, (name, kind, archived) in enumerate(matches, 1):
+            suffix = ' — archived, cannot configure' if archived else ''
+            selected = ' [default]' if str(number) == default else ''
+            print(f'  {number}. {name} ({kind}){suffix}{selected}')
+        if user:
+            print('  N. Create a new copy from the source' + (' [default]' if default == 'N' else ''))
+        print('  M. Enter a repository manually\n  0. Manual secret instructions / exit')
+        choice = input(f'Choose an option [{default}]: ').strip() or default
+        if choice == '0':
+            return None
+        if choice.lower() == 'n' and user:
+            repo = create_repository(user)
+            if repo:
+                return repo
+            continue
+        if choice.isdigit() and 1 <= int(choice) <= len(matches):
+            name, _, archived = matches[int(choice) - 1]
+            if archived:
+                print('Unarchive that repository in GitHub first, or choose another copy.')
+                continue
+            return name
+        if choice.lower() == 'm':
+            choice = input('Repository owner/name or GitHub URL: ').strip()
+        # Also accept pasted repository URLs directly at the picker.
+        repo = re.sub(r'^https://github\.com/', '', choice).rstrip('/')
+        if repo.endswith('.git'):
+            repo = repo[:-4]
+        if re.fullmatch(r'[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+', repo):
+            return repo
+        print('Choose a listed number, N, M, or 0.')
+
+
+def prepare_workflow(repo):
+    """Only offer activation after the remote workflow matches this setup version."""
+    remote = run_gh(['workflow', 'view', 'change-dp.yml', '--repo', 'github.com/' + repo, '--yaml'], capture_output=True, text=True)
+    local = (Path(__file__).resolve().parent.parent / '.github/workflows/change-dp.yml').read_text()
+    if remote.returncode or remote.stdout.strip() != local.strip():
+        print('The GitHub workflow is missing or differs from this setup version. Publish the updated project files to the default branch first.')
+        print('Your secret is saved. Then rerun setup with --github-only; no Instagram login is needed.')
+        return False
+    info = api_json(f'repos/{repo}/actions/workflows/change-dp.yml')
+    if info.get('state') != 'active':
+        print('This workflow is disabled. Enabling it also enables scheduled picture changes.')
+        if input('Enable this workflow? [Y/n]: ').strip().lower() in ('n', 'no'):
+            return False
+        enabled = run_gh(['workflow', 'enable', 'change-dp.yml', '--repo', 'github.com/' + repo], capture_output=True)
+        if enabled.returncode:
+            print('Could not enable the workflow. Check repository Actions permissions.')
+            return False
+    return True
+
+
+def configure_github(session_file):
+    try:
+        if not ensure_gh():
+            manual_instructions(session_file)
+            return
+        status = run_gh(['auth', 'status', '--hostname', 'github.com'], capture_output=True)
+        if status.returncode:
+            print('Sign in to GitHub in your browser. Follow the device-code instructions below.')
+            login = run_gh(['auth', 'login', '--hostname', 'github.com', '--git-protocol', 'https', '--web'])
+            if login.returncode:
+                print('GitHub sign-in did not finish. Your local session is safe.')
+                manual_instructions(session_file)
+                return
+        repo = select_repository()
+        if not repo:
+            manual_instructions(session_file)
+            return
+        info = run_gh(['repo', 'view', 'github.com/' + repo, '--json', 'nameWithOwner,viewerPermission'], capture_output=True, text=True)
+        if info.returncode:
+            print('Cannot access that repository. Check its name and your GitHub account.')
+            manual_instructions(session_file, repo)
+            return
+        metadata = json.loads(info.stdout)
+        if metadata.get('viewerPermission') != 'ADMIN':
+            print('Repository admin access is required to configure Actions secrets. Use your own copy or ask its admin.')
+            manual_instructions(session_file, repo)
+            return
+        repo = metadata['nameWithOwner']
+        print(f'Target repository: https://github.com/{repo}')
+        if input('Save/replace INSTA_SESSION in this repository? [Y/n]: ').strip().lower() in ('n', 'no'):
+            print('Skipped GitHub changes. Your session remains saved locally.')
+            return
+        with session_file.open('rb') as session:
+            result = run_gh(['secret', 'set', 'INSTA_SESSION', '--repo', 'github.com/' + repo], stdin=session, capture_output=True)
+        if result.returncode:
+            print('Secret upload failed. Check repository permissions and try python setup.py --github-only.')
+            manual_instructions(session_file, repo)
+            return
+        print('INSTA_SESSION saved. Your Instagram password was not uploaded.')
+        if input('Start the workflow setup check now? (no picture change) [Y/n]: ').strip().lower() not in ('n', 'no'):
+            if not prepare_workflow(repo):
+                return
+            result = run_gh(['workflow', 'run', 'change-dp.yml', '--repo', 'github.com/' + repo, '-f', 'mode=check'], capture_output=True)
+            if result.returncode:
+                print('Could not start the check. Push the updated workflow, enable Actions, then run mode check from GitHub.')
+            else:
+                print('Setup check requested. Read its result in Actions; this does not mean the check passed yet.')
+        print(f'View results: https://github.com/{repo}/actions/workflows/change-dp.yml')
+    except (OSError, ValueError, KeyError):
+        print('GitHub setup could not finish. Your local session is saved. Retry with python setup.py --github-only.')
+        manual_instructions(session_file)

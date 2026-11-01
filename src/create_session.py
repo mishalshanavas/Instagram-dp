@@ -1,115 +1,135 @@
-"""
-Run this ONCE from your local machine / home network to create a session.
-Instagram sees your home IP → trusts the login → saves the session.
-GitHub Actions then reuses this session without triggering a fresh login.
+"""Interactive setup; credentials are prompted for, never passed on the command line."""
+import getpass
+import argparse
+from urllib.parse import unquote
 
-Usage:
-    # Option 1: Login with session ID from browser (recommended)
-    python create_session.py --sessionid <sessionid>
+from instagrapi.exceptions import (
+    TwoFactorRequired, ClientThrottledError, PleaseWaitFewMinutes,
+    BadPassword, ChallengeRequired, LoginRequired,
+)
+from session_utils import SESSION_FILE, make_client, parse_session, save_session
 
-    # Option 2: Login with username/password
-    python create_session.py <username> <password>
 
-To get your session ID:
-    1. Log in to instagram.com in your browser
-    2. F12 → Application → Cookies → instagram.com
-    3. Copy the value of the 'sessionid' cookie
-"""
+class SetupError(Exception):
+    """A safe, user-facing setup error."""
 
-import sys
-from pathlib import Path
-from instagrapi import Client
 
-SESSION_FILE = Path(__file__).parent.parent / "data" / "session.json"
+def verification_code(*_args, **_kwargs):
+    return getpass.getpass('Instagram verification code (hidden): ').strip()
 
-# Instagram v410 user-agent — required since Feb 2026 (#2369)
-USER_AGENT = (
-    "Instagram 410.0.0.0.96 Android (33/13; 480dpi; 1080x2400; "
-    "xiaomi; M2007J20CG; surya; qcom; en_US; 641123490)"
+
+RATE_LIMIT_MESSAGE = (
+    'Instagram temporarily blocked this request (HTTP 429 / rate limit).\n'
+    'This does not prove your password is wrong. No automatic retry was made.\n'
+    'Stop login attempts for now; check Instagram for any verification prompts.\n'
+    'Wait before trying again on your usual network. Instagram does not provide a guaranteed cooldown.\n'
+    'After the restriction clears, you can try option 3 with a trusted saved session, or option 2 '    'with a browser session. Neither bypasses a rate limit.\n'
+    'Your previous saved session has not been overwritten.'
 )
 
 
-def _make_client() -> Client:
-    cl = Client()
-    cl.set_user_agent(USER_AGENT)
-    cl.delay_range = [1, 3]
-    return cl
+def disable_login_retries(client):
+    # Loaded settings can restore retry values, so also apply this after set_settings.
+    client.set_retry_config(session_retry_total=0, public_request_retries_count=0)
 
 
-def main():
-    if len(sys.argv) < 2:
-        print("Usage:")
-        print("  python create_session.py --sessionid <sessionid>")
-        print("  python create_session.py <username> <password>")
-        raise SystemExit(1)
+def authenticate(client):
+    disable_login_retries(client)
+    try:
+        _authenticate(client)
+    except (ClientThrottledError, PleaseWaitFewMinutes):
+        raise SetupError(RATE_LIMIT_MESSAGE) from None
+    except BadPassword:
+        raise SetupError('Instagram rejected the login. Verify your details in the official app. '
+                         'A correct password can also be rejected because of login/network restrictions. '
+                         'Do not repeatedly retry.') from None
+    except ChallengeRequired:
+        raise SetupError('Instagram requires verification. Complete the prompt in the official app, '
+                         'then retry setup. No new session was saved.') from None
+    except LoginRequired:
+        raise SetupError('Instagram rejected or expired this session. Resolve any prompts in the app, '
+                         'then create a new session. No new session was saved.') from None
+    except Exception as exc:
+        response = getattr(exc, 'response', None)
+        if getattr(response, 'status_code', None) == 429:
+            raise SetupError(RATE_LIMIT_MESSAGE) from None
+        raise
 
-    SESSION_FILE.parent.mkdir(exist_ok=True)
-    cl = _make_client()
 
-    if sys.argv[1] == "--sessionid":
-        if len(sys.argv) != 3:
-            print("Usage: python create_session.py --sessionid <sessionid>")
-            raise SystemExit(1)
-
-        session_id = sys.argv[2]
-        if "%3A" in session_id:
-            from urllib.parse import unquote
-            session_id = unquote(session_id)
-
-        print("=== Instagram Session Creator (via browser session) ===\n")
-
+def _authenticate(client):
+    client.challenge_code_handler = verification_code
+    print('Choose a login method:\n')
+    print('  1. Username and password')
+    print('  2. Browser session')
+    print('  3. Reuse a trusted local session (no password login)')
+    print('  0. Exit\n')
+    choice = input('Enter a number [1]: ').strip() or '1'
+    if choice == '0':
+        raise SystemExit(0)
+    if choice == '1':
+        username = input('Instagram username: ').strip()
+        password = getpass.getpass('Instagram password (hidden): ')
+        if not username or not password:
+            raise SetupError('Username and password are required.')
         try:
-            print("Logging in with session ID...")
-            cl.login_by_sessionid(session_id)
-        except Exception as e:
-            print(f"API login failed ({e.__class__.__name__}), saving session manually...")
-            # Build minimal session — GitHub Actions validates from a clean IP
-            cl.set_settings({
-                "authorization_data": {
-                    "ds_user_id": session_id.split(":")[0],
-                    "sessionid": session_id,
-                },
-                "cookies": {
-                    "sessionid": session_id,
-                    "ds_user_id": session_id.split(":")[0],
-                },
-                "uuids": {},
-            })
-            cl.set_user_agent(USER_AGENT)
-            cl.dump_settings(str(SESSION_FILE))
-            print(f"\nSession saved to: {SESSION_FILE}")
-            print("(Saved without validation — GitHub Actions will validate from its IP)")
-            print("\n  git add data/session.json && git commit -m 'add session' && git push")
-            return
-
+            logged_in = client.login(username, password)
+        except TwoFactorRequired:
+            logged_in = client.login(username, password, verification_code=verification_code())
+        if not logged_in:
+            raise SetupError('Instagram did not confirm the login.')
+    elif choice == '2':
+        print('In your browser: instagram.com → developer tools → Application/Storage → Cookies → sessionid.')
+        token = unquote(getpass.getpass('Paste sessionid (hidden): ').strip())
+        if not token:
+            raise SetupError('A session ID is required.')
+        client.login_by_sessionid(token)
+    elif choice == '3':
+        try:
+            settings = parse_session(SESSION_FILE.read_text())
+        except (OSError, ValueError):
+            raise SetupError('No usable local session. Choose option 1 or 2 on your next setup attempt.') from None
+        print('Use this only for a session you trust. Revoke sessions exposed in Git history.')
+        client.set_settings(settings)
+        disable_login_retries(client)
     else:
-        if len(sys.argv) != 3:
-            print("Usage: python create_session.py <username> <password>")
-            raise SystemExit(1)
-
-        username, password = sys.argv[1], sys.argv[2]
-        print(f"=== Instagram Session Creator ===")
-        print(f"User: {username}\n")
-
-        # If a previous session exists, reuse its UUIDs (anti-detection)
-        if SESSION_FILE.exists():
-            print("Found existing session — reusing device UUIDs...")
-            session = cl.load_settings(str(SESSION_FILE))
-            cl.set_settings(session)
-            cl.set_user_agent(USER_AGENT)
-
-        print("Logging in with credentials...")
-        cl.login(username, password)
-
-    # Validate the session
-    cl.get_timeline_feed()
-    print("Login successful!")
-
-    cl.dump_settings(str(SESSION_FILE))
-    print(f"\nSession saved to: {SESSION_FILE}")
-    print("\nNext steps:")
-    print("  git add data/session.json && git commit -m 'add session' && git push")
+        raise SetupError('Choose 0, 1, 2, or 3, then run setup again.')
+    client.account_info()
 
 
-if __name__ == "__main__":
+def configure_github():
+    from github_setup import configure_github as configure
+    configure(SESSION_FILE)
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--github-only', action='store_true', help='Retry GitHub setup using the existing local session')
+    args = parser.parse_args(argv)
+    if args.github_only:
+        try:
+            parse_session(SESSION_FILE.read_text())
+        except (OSError, ValueError):
+            raise SystemExit('No usable local session. Run python setup.py without --github-only first.') from None
+        try:
+            configure_github()
+        except (KeyboardInterrupt, EOFError):
+            raise SystemExit('GitHub setup cancelled; your local session is saved.') from None
+        return
+    print('\nInstagram DP setup — your password stays on this computer.\n')
+    try:
+        client = make_client()
+        authenticate(client)
+        save_session(client, SESSION_FILE)
+        print('Login validated. Your private session is saved locally.')
+        configure_github()
+    except (KeyboardInterrupt, EOFError):
+        raise SystemExit('\nSetup cancelled.') from None
+    except SetupError as exc:
+        raise SystemExit(str(exc)) from None
+    except Exception:
+        raise SystemExit('Setup failed. Check your network and login details; open Instagram to resolve '
+                         'any verification prompts, then retry. No unvalidated session was saved.') from None
+
+
+if __name__ == '__main__':
     main()
