@@ -45,3 +45,19 @@ class FinishSetupTests(unittest.TestCase):
             gh.finish_setup('me/repo')
         prepare.assert_not_called()
         run.assert_not_called()
+
+    def test_automatic_setup_checks_then_rotates_without_prompt(self):
+        with patch.object(gh, 'prepare_workflow', return_value=True), patch.object(gh, 'run_workflow', return_value=True) as run, patch('builtins.input') as prompt:
+            self.assertTrue(gh.automatic_setup('me/repo'))
+        self.assertEqual([call.args for call in run.call_args_list], [('me/repo', 'check'), ('me/repo', 'rotate')])
+        prompt.assert_not_called()
+
+    def test_automatic_setup_never_rotates_after_failed_check(self):
+        with patch.object(gh, 'prepare_workflow', return_value=True), patch.object(gh, 'run_workflow', return_value=False) as run:
+            self.assertFalse(gh.automatic_setup('me/repo'))
+        run.assert_called_once_with('me/repo', 'check')
+
+    def test_automatic_setup_respects_template_guard(self):
+        with patch.object(gh, 'prepare_workflow', return_value=False), patch.object(gh, 'run_workflow') as run:
+            self.assertFalse(gh.automatic_setup(gh.SOURCE_REPO))
+        run.assert_not_called()

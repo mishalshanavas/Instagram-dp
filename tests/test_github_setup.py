@@ -42,9 +42,9 @@ class GitHubSetupTests(unittest.TestCase):
         self.assertIn('mode=check', run.call_args_list[4].args[0])
         self.assertIn('does not mean the check passed', self.output.getvalue())
 
-    def test_existing_login_skips_browser_and_can_skip_check(self):
-        run = self.configure(['owner/repo', '0'], [result(), result(data={'nameWithOwner': 'owner/repo', 'viewerPermission': 'ADMIN'}), result()])
-        self.assertEqual(run.call_count, 3)
+    def test_existing_login_automatically_dispatches_check(self):
+        run = self.configure(['owner/repo'], [result(), result(data={'nameWithOwner': 'owner/repo', 'viewerPermission': 'ADMIN'}), result(), result()])
+        self.assertEqual(run.call_count, 4)
         self.assertNotIn('auth login', str(run.call_args_list))
 
     def test_auth_failure_does_not_upload(self):
@@ -63,9 +63,9 @@ class GitHubSetupTests(unittest.TestCase):
         self.assertIn('admin access', self.output.getvalue())
 
     def test_upload_is_automatic(self):
-        run = self.configure(['owner/repo', '0'], [result(), result(data={'viewerPermission': 'ADMIN', 'nameWithOwner': 'owner/repo'}), result()])
-        self.assertEqual(run.call_count, 3)
-        self.assertIn('secret', run.call_args.args[0])
+        run = self.configure(['owner/repo'], [result(), result(data={'viewerPermission': 'ADMIN', 'nameWithOwner': 'owner/repo'}), result(), result()])
+        self.assertEqual(run.call_count, 4)
+        self.assertIn('secret', run.call_args_list[2].args[0])
 
     def test_upload_failure_never_dispatches(self):
         run = self.configure(['owner/repo', ''], [result(), result(data={'viewerPermission': 'ADMIN', 'nameWithOwner': 'owner/repo'}), result(1)])

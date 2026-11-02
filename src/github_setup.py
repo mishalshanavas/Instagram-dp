@@ -309,7 +309,18 @@ def finish_setup(repo):
         run_workflow(repo, 'rotate')
 
 
-def configure_github(session_file):
+def automatic_setup(repo):
+    step('3 / 3', 'Automatic check & first rotation')
+    print('Using the photos currently in this repository, including placeholders if not replaced.')
+    if not prepare_workflow(repo):
+        return False
+    if not run_workflow(repo, 'check'):
+        print('Stopped after the check. No rotation was requested.')
+        return False
+    return run_workflow(repo, 'rotate')
+
+
+def configure_github(session_file, manage=False):
     try:
         if not ensure_gh():
             manual_instructions(session_file)
@@ -347,7 +358,10 @@ def configure_github(session_file):
             manual_instructions(session_file, repo)
             return
         print('INSTA_SESSION saved. Your Instagram password was not uploaded.')
-        finish_setup(repo)
+        if manage:
+            finish_setup(repo)
+        else:
+            automatic_setup(repo)
 
     except (OSError, ValueError, KeyError):
         print('GitHub setup could not finish. Your local session is saved. Retry with python setup.py --github-only.')

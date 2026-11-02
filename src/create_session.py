@@ -96,14 +96,15 @@ def _authenticate(client):
     client.account_info()
 
 
-def configure_github():
+def configure_github(manage=False):
     from github_setup import configure_github as configure
-    configure(SESSION_FILE)
+    configure(SESSION_FILE, manage=manage)
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--github-only', action='store_true', help='Retry GitHub setup using the existing local session')
+    parser.add_argument('--manage', action='store_true', help='Open the photo and workflow menu instead of automatic rotation')
     args = parser.parse_args(argv)
     if args.github_only:
         try:
@@ -111,7 +112,7 @@ def main(argv=None):
         except (OSError, ValueError):
             raise SystemExit('No usable local session. Run python setup.py without --github-only first.') from None
         try:
-            configure_github()
+            configure_github(manage=True) if args.manage else configure_github()
         except (KeyboardInterrupt, EOFError):
             raise SystemExit('GitHub setup cancelled; your local session is saved.') from None
         return
@@ -124,7 +125,7 @@ def main(argv=None):
         save_session(client, SESSION_FILE)
         clear_login_screen()
         print('Login validated. Your private session is saved locally.')
-        configure_github()
+        configure_github(manage=True) if args.manage else configure_github()
     except (KeyboardInterrupt, EOFError):
         raise SystemExit('\nSetup cancelled.') from None
     except SetupError as exc:

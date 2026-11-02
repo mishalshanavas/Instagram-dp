@@ -50,6 +50,7 @@ def install_progress():
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--github-only', action='store_true', help='Retry GitHub setup without another Instagram login')
+    parser.add_argument('--manage', action='store_true', help='Open the photo/workflow menu instead of automatic rotation')
     args = parser.parse_args()
     if sys.version_info < (3, 11):
         raise SystemExit('Install Python 3.11 or newer from https://www.python.org/downloads/, then retry.')
@@ -75,6 +76,8 @@ def main():
         print('Dependencies ready.', flush=True)
         clear_screen()
         command = [str(python), str(root / 'src/create_session.py')]
+        if args.manage:
+            command.append('--manage')
         if args.github_only:
             command.append('--github-only')
         try:

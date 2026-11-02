@@ -57,6 +57,8 @@ Package installation shows a compact animated progress bar instead of pip logs. 
 
 **Controls:** **↑ / ↓** to move · **Enter** to select · **Ctrl+C** to cancel. Basic terminals show numbered choices instead.
 
+> **Automatic mode:** the commands above save the session, enable Actions, check setup, and perform the first rotation automatically. This uses the repository’s current images, including placeholders. To add your own photos before the first rotation, append `--manage` to the setup command.
+
 ### 2. Connect your accounts
 
 **Instagram**
@@ -85,7 +87,7 @@ Follow the prompts in the same terminal:
 
 ### 3. Add your photos
 
-In the final menu, select **Replace photos from a folder**.
+To open the photo menu instead of automatically rotating, run `py setup.py --github-only --manage` on Windows, or `python3 setup.py --github-only --manage` on macOS/Linux. Then select **Replace photos from a folder**.
 
 1. Put **every photo you want in the rotation** into one folder on your computer.
 2. Paste that folder's full path when asked. Examples:
@@ -110,20 +112,11 @@ The template includes **11 solid-color placeholders at 320 × 320 pixels (1:1)**
 
 ### 4. Check it, then start
 
-From the same menu:
+Default setup handles this automatically: it enables the workflow if needed, runs and watches the read-only check, then performs and watches the first rotation. If the check fails, setup stops without requesting a rotation. No browser visit or extra confirmation is needed.
 
-```text
-Check login and photos (recommended)
-Change your profile picture now
-Replace photos from a folder
-Finish
-```
+The check validates login and image files; Instagram can still refuse a profile update. Failures show a safe error summary rather than automatically retrying.
 
-Select **Check login and photos**. The wizard checks the remote workflow, enables it if disabled, and watches the run in your terminal.
-
-The check validates login and images only; Instagram can still refuse a profile update. If a run fails, the wizard fetches a safe error summary automatically.
-
-After the check passes, answer **yes** to **“Change your profile picture now?”** Wait for the success message. You don't need to open the GitHub Actions page.
+If you started with `--manage`, use the menu to choose a check, photo replacement, or rotation manually.
 
 **What happens next:** each successful rotation schedules the next change 2–5 hours later. GitHub checks hourly, so actual timing may be later. Enabling the workflow also enables scheduled rotations, which can run independently of your manual check.
 
@@ -137,7 +130,7 @@ Want to replace photos or trigger another run? Open the project folder's termina
 | --- | --- |
 | `py setup.py --github-only` | `python3 setup.py --github-only` |
 
-Select your repository and use the final menu. If the Instagram session itself has expired, run full setup again to create and save a new one.
+Select your repository to automatically check and rotate again. Append `--manage` if you want the photo/workflow menu instead. If the Instagram session itself has expired, run full setup again to create and save a new one.
 
 <details>
 <summary><strong>Prefer direct GitHub CLI commands?</strong></summary>
