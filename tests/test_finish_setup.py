@@ -53,18 +53,18 @@ class FinishSetupTests(unittest.TestCase):
         run.assert_not_called()
 
     def test_automatic_setup_checks_then_rotates_without_prompt(self):
-        with patch.object(gh, 'prepare_workflow', return_value=True), patch.object(gh, 'run_workflow', return_value=True) as run, patch('builtins.input') as prompt:
+        with patch.object(gh, 'prepare_photos', return_value=True), patch.object(gh, 'prepare_workflow', return_value=True), patch.object(gh, 'run_workflow', return_value=True) as run, patch('builtins.input') as prompt:
             self.assertTrue(gh.automatic_setup('me/repo'))
         self.assertEqual([call.args for call in run.call_args_list], [('me/repo', 'check'), ('me/repo', 'rotate')])
         prompt.assert_not_called()
 
     def test_automatic_setup_never_rotates_after_failed_check(self):
-        with patch.object(gh, 'prepare_workflow', return_value=True), patch.object(gh, 'run_workflow', return_value=False) as run:
+        with patch.object(gh, 'prepare_photos', return_value=True), patch.object(gh, 'prepare_workflow', return_value=True), patch.object(gh, 'run_workflow', return_value=False) as run:
             self.assertFalse(gh.automatic_setup('me/repo'))
         run.assert_called_once_with('me/repo', 'check')
 
     def test_automatic_setup_respects_template_guard(self):
-        with patch.object(gh, 'prepare_workflow', return_value=False), patch.object(gh, 'run_workflow') as run:
+        with patch.object(gh, 'prepare_photos', return_value=True), patch.object(gh, 'prepare_workflow', return_value=False), patch.object(gh, 'run_workflow') as run:
             self.assertFalse(gh.automatic_setup(gh.SOURCE_REPO))
         run.assert_not_called()
 
@@ -83,3 +83,21 @@ class LookupTests(unittest.TestCase):
     def test_concurrent_runs_not_guessed(self):
         with patch.object(gh, 'workflow_run_ids', return_value={'1', '2', '3'}):
             self.assertIsNone(gh.find_dispatched_run('me/repo', {'1'}))
+
+
+class PhotoOnboardingTests(unittest.TestCase):
+    def test_default_replaces_photos_before_any_workflow(self):
+        with patch('builtins.input', return_value=''), patch('image_setup.replace_photos', return_value=True) as upload:
+            self.assertTrue(gh.prepare_photos('me/repo'))
+        upload.assert_called_once_with('me/repo')
+
+    def test_cancelled_upload_stops_automatic_rotation(self):
+        with patch('builtins.input', return_value=''), patch('image_setup.replace_photos', return_value=False), patch.object(gh, 'prepare_workflow') as prepare, patch.object(gh, 'run_workflow') as run:
+            self.assertFalse(gh.automatic_setup('me/repo'))
+        prepare.assert_not_called()
+        run.assert_not_called()
+
+    def test_existing_photos_require_explicit_choice(self):
+        with patch('builtins.input', return_value='2'), patch('image_setup.replace_photos') as upload:
+            self.assertTrue(gh.prepare_photos('me/repo'))
+        upload.assert_not_called()

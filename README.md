@@ -57,7 +57,7 @@ Package installation shows a compact animated progress bar instead of pip logs. 
 
 **Controls:** **↑ / ↓** to move · **Enter** to select · **Ctrl+C** to cancel. Basic terminals show numbered choices instead.
 
-> **Automatic mode:** the commands above save the session, enable Actions, check setup, and perform the first rotation automatically. This uses the repository’s current images, including placeholders. To add your own photos before the first rotation, append `--manage` to the setup command.
+> **Automatic mode:** the commands above save the session, enable Actions, check setup, and perform the first rotation automatically. Before any run, setup recommends adding your own photos. Existing repository images are used only if you explicitly choose them. Add `--manage` to open the manual photo/workflow menu instead.
 
 ### 2. Connect your accounts
 
@@ -87,7 +87,9 @@ Follow the prompts in the same terminal:
 
 ### 3. Add your photos
 
-To open the photo menu instead of automatically rotating, run `py setup.py --github-only --manage` on Windows, or `python3 setup.py --github-only --manage` on macOS/Linux. Then select **Replace photos from a folder**.
+Default setup asks **“Which photos should the bot use?”** Select **Add my photos from a folder (recommended)**. Cancelling or failing the upload stops setup before any rotation. Choose **Use the photos already in this repository** only if you intend to keep that set.
+
+To replace photos later, run `py setup.py --github-only --manage` on Windows, or `python3 setup.py --github-only --manage` on macOS/Linux. Then select **Replace photos from a folder**.
 
 1. Put **every photo you want in the rotation** into one folder on your computer.
 2. Paste that folder's full path when asked. Examples:
@@ -112,7 +114,7 @@ The template includes **11 solid-color placeholders at 320 × 320 pixels (1:1)**
 
 ### 4. Check it, then start
 
-Default setup handles this automatically: it enables the workflow if needed, runs and watches the read-only check, then performs and watches the first rotation. If the check fails, setup stops without requesting a rotation. No browser visit or extra confirmation is needed.
+After you add your photos or explicitly choose the existing set, setup handles this automatically: it enables the workflow if needed, runs and watches the read-only check, then performs and watches the first rotation. If the check fails, setup stops without requesting a rotation. No browser visit or extra confirmation is needed.
 
 The check validates login and image files; Instagram can still refuse a profile update. Failures show a safe error summary rather than automatically retrying.
 

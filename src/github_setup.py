@@ -380,9 +380,28 @@ def finish_setup(repo):
         run_workflow(repo, 'rotate')
 
 
+def prepare_photos(repo):
+    print('Before the first rotation, add your own photos. New copies contain solid-color placeholders.')
+    choice = choose('Which photos should the bot use?', [
+        ('1', 'Add my photos from a folder (recommended)'),
+        ('2', 'Use the photos already in this repository'),
+        ('0', 'Finish without starting automation')], '1', 'Choose photos [1]: ')
+    if choice == '1':
+        from image_setup import replace_photos
+        if not replace_photos(repo):
+            print('Photos were not replaced. Stopping setup so placeholders are not used accidentally.')
+            return False
+        return True
+    if choice == '2':
+        print('Using the existing photo set, including placeholders if they have not been replaced.')
+        return True
+    return False
+
+
 def automatic_setup(repo):
     step('3 / 3', 'Automatic check & first rotation')
-    print('Using the photos currently in this repository, including placeholders if not replaced.')
+    if not prepare_photos(repo):
+        return False
     if not prepare_workflow(repo):
         return False
     if not run_workflow(repo, 'check'):
