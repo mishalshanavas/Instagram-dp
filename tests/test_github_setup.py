@@ -18,6 +18,12 @@ def result(code=0, data=None):
 
 class GitHubSetupTests(unittest.TestCase):
     def setUp(self):
+        snapshot = patch.object(gh, 'workflow_run_ids', return_value=set())
+        snapshot.start()
+        self.addCleanup(snapshot.stop)
+        lookup = patch.object(gh, 'find_dispatched_run', return_value=None)
+        lookup.start()
+        self.addCleanup(lookup.stop)
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.session = Path(self.temp.name) / 'session.json'

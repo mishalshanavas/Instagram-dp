@@ -295,23 +295,57 @@ def show_run_failure(repo, run_id):
         print('No safe Instagram error summary was available. Use the command above for the failed step.')
 
 
+def workflow_run_ids(repo):
+    result = run_gh(['run', 'list', '--repo', 'github.com/' + repo, '--workflow', 'change-dp.yml',
+                     '--event', 'workflow_dispatch', '--limit', '100', '--json', 'databaseId'],
+                    capture_output=True, text=True)
+    if result.returncode:
+        return None
+    try:
+        return {str(item['databaseId']) for item in json.loads(result.stdout)}
+    except (ValueError, KeyError, TypeError):
+        return None
+
+
+def find_dispatched_run(repo, previous):
+    import time
+    for attempt in range(10):
+        current = workflow_run_ids(repo)
+        if current is None:
+            return None
+        candidates = current - previous
+        if len(candidates) == 1:
+            return candidates.pop()
+        if len(candidates) > 1:
+            print('Multiple new runs appeared. Refusing to guess which one belongs to this setup.')
+            return None
+        if attempt < 9:
+            time.sleep(2)
+    return None
+
+
 def run_workflow(repo, mode):
+    previous = workflow_run_ids(repo)
+    if previous is None:
+        print('Could not read workflow runs. No new run was requested; check GitHub access and retry.')
+        return False
     result = run_gh(['workflow', 'run', 'change-dp.yml', '--repo', 'github.com/' + repo,
                      '-f', 'mode=' + mode], capture_output=True, text=True)
     if result.returncode:
         print('Could not start the workflow. Your secret is saved; rerun setup with --github-only to retry.')
         return False
     match = re.search(r'https://github.com/[^/]+/[^/]+/actions/runs/(\d+)', result.stdout or '')
-    if not match:
+    run_id = match.group(1) if match else find_dispatched_run(repo, previous)
+    if not run_id:
         print('Workflow requested; this does not mean the check passed yet.')
         print(f'Check progress with: gh run list --repo {repo} --workflow change-dp.yml')
         return False
     print('Waiting for GitHub Actions. Press Ctrl+C to stop watching; the remote run will continue.')
-    watched = run_gh(['run', 'watch', match.group(1), '--repo', 'github.com/' + repo, '--exit-status', '--interval', '10'])
+    watched = run_gh(['run', 'watch', run_id, '--repo', 'github.com/' + repo, '--exit-status', '--interval', '10'])
     if watched.returncode:
         print('Workflow did not pass or could not be watched. Inspect it from this terminal:')
-        print(f'gh run view {match.group(1)} --repo {repo} --log-failed')
-        show_run_failure(repo, match.group(1))
+        print(f'gh run view {run_id} --repo {repo} --log-failed')
+        show_run_failure(repo, run_id)
         return False
     print('Setup check passed. Your picture was not changed. This read-only check does not test profile-update permission.' if mode == 'check'
           else 'Your profile picture was updated and the next rotation was scheduled.')

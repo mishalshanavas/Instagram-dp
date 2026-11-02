@@ -10,6 +10,12 @@ import github_setup as gh
 
 class FinishSetupTests(unittest.TestCase):
     def setUp(self):
+        snapshot = patch.object(gh, 'workflow_run_ids', return_value=set())
+        snapshot.start()
+        self.addCleanup(snapshot.stop)
+        lookup = patch.object(gh, 'find_dispatched_run', return_value=None)
+        lookup.start()
+        self.addCleanup(lookup.stop)
         self.output = io.StringIO()
         redirect = contextlib.redirect_stdout(self.output)
         redirect.__enter__()
@@ -61,3 +67,19 @@ class FinishSetupTests(unittest.TestCase):
         with patch.object(gh, 'prepare_workflow', return_value=False), patch.object(gh, 'run_workflow') as run:
             self.assertFalse(gh.automatic_setup(gh.SOURCE_REPO))
         run.assert_not_called()
+
+    def test_old_cli_empty_output_is_resolved_and_watched(self):
+        with patch.object(gh, 'find_dispatched_run', return_value='987'), patch.object(gh, 'run_gh', side_effect=[Mock(returncode=0, stdout=''), Mock(returncode=0)]) as run:
+            self.assertTrue(gh.run_workflow('me/repo', 'check'))
+        self.assertEqual(run.call_args.args[0][:3], ['run', 'watch', '987'])
+
+
+
+class LookupTests(unittest.TestCase):
+    def test_delayed_run(self):
+        with patch.object(gh, 'workflow_run_ids', side_effect=[{'1'}, {'1', '2'}]), patch('time.sleep'):
+            self.assertEqual(gh.find_dispatched_run('me/repo', {'1'}), '2')
+
+    def test_concurrent_runs_not_guessed(self):
+        with patch.object(gh, 'workflow_run_ids', return_value={'1', '2', '3'}):
+            self.assertIsNone(gh.find_dispatched_run('me/repo', {'1'}))
