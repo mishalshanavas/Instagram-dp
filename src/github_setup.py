@@ -1,4 +1,5 @@
 """GitHub CLI onboarding; never put session contents in command arguments."""
+from terminal_ui import prompt as input, choose, step
 import json
 import os
 from pathlib import Path
@@ -55,7 +56,7 @@ def manual_instructions(session_file, repo=''):
     print('Then open Actions → Update Instagram DP → Run workflow → check.')
 
 
-SOURCE_REPO = 'mishal-scet/Instagram-dp'
+SOURCE_REPO = 'mishalshanavas/Instagram-dp'
 
 
 def api_json(endpoint):
@@ -141,14 +142,25 @@ def select_repository():
                 print('No matching forks or template copies found in this account.')
         default = next((str(i) for i, item in enumerate(matches, 1) if not item[2]),
                        'N' if user else '0')
-        for number, (name, kind, archived) in enumerate(matches, 1):
-            suffix = ' — archived, cannot configure' if archived else ''
-            selected = ' [default]' if str(number) == default else ''
-            print(f'  {number}. {name} ({kind}){suffix}{selected}')
-        if user:
-            print('  N. Create a new copy from the source' + (' [default]' if default == 'N' else ''))
-        print('  M. Enter a repository manually\n  0. Manual secret instructions / exit')
-        choice = input(f'Choose an option [{default}]: ').strip() or default
+        from terminal_ui import interactive
+        if not interactive():
+            for number, (name, kind, archived) in enumerate(matches, 1):
+                suffix = ' — archived, cannot configure' if archived else ''
+                selected = ' [default]' if str(number) == default else ''
+                print(f'  {number}. {name} ({kind}){suffix}{selected}')
+            if user:
+                print('  N. Create a new copy from the source' + (' [default]' if default == 'N' else ''))
+            print('  M. Enter a repository manually\n  0. Manual secret instructions / exit')
+        from terminal_ui import interactive
+        if interactive():
+            options = [(str(i), f'{name} · {kind}' + (' · archived' if archived else ''))
+                       for i, (name, kind, archived) in enumerate(matches, 1)]
+            if user:
+                options.append(('N', 'Create a new repository'))
+            options.extend([('M', 'Enter a repository manually'), ('0', 'Finish / manual setup')])
+            choice = choose('Choose a repository', options, default, '').strip()
+        else:
+            choice = input(f'Choose an option [{default}]: ').strip() or default
         if choice == '0':
             return None
         if choice.lower() == 'n' and user:
@@ -175,6 +187,9 @@ def select_repository():
 
 def prepare_workflow(repo):
     """Only offer activation after the remote workflow matches this setup version."""
+    if repo.casefold() == SOURCE_REPO.casefold():
+        print('This is the template repository. Create or select your own copy to run automation.')
+        return False
     remote = run_gh(['workflow', 'view', 'change-dp.yml', '--repo', 'github.com/' + repo, '--yaml'], capture_output=True, text=True)
     local = (Path(__file__).resolve().parent.parent / '.github/workflows/change-dp.yml').read_text()
     if remote.returncode or remote.stdout.strip() != local.strip():
@@ -193,11 +208,62 @@ def prepare_workflow(repo):
     return True
 
 
+def run_workflow(repo, mode):
+    result = run_gh(['workflow', 'run', 'change-dp.yml', '--repo', 'github.com/' + repo,
+                     '-f', 'mode=' + mode], capture_output=True, text=True)
+    if result.returncode:
+        print('Could not start the workflow. Your secret is saved; rerun setup with --github-only to retry.')
+        return False
+    match = re.search(r'https://github.com/[^/]+/[^/]+/actions/runs/(\d+)', result.stdout or '')
+    if not match:
+        print('Workflow requested; this does not mean the check passed yet.')
+        print(f'Check progress with: gh run list --repo {repo} --workflow change-dp.yml')
+        return False
+    print('Waiting for GitHub Actions. Press Ctrl+C to stop watching; the remote run will continue.')
+    watched = run_gh(['run', 'watch', match.group(1), '--repo', 'github.com/' + repo, '--exit-status', '--interval', '10'])
+    if watched.returncode:
+        print('Workflow did not pass or could not be watched. Inspect it from this terminal:')
+        print(f'gh run view {match.group(1)} --repo {repo} --log-failed')
+        return False
+    print('Setup check passed. Your picture was not changed.' if mode == 'check'
+          else 'Your profile picture was updated and the next rotation was scheduled.')
+    return True
+
+
+def finish_setup(repo):
+    step('3 / 3', 'Photos & automation')
+    while True:
+        choice = choose('What would you like to do?', [
+            ('1', 'Check login and photos (recommended)'),
+            ('2', 'Change your profile picture now'),
+            ('3', 'Replace photos from a folder'), ('0', 'Finish')],
+            '1', 'Choose an option [1]: ').lower()
+        if choice in ('0', 'n', 'no'):
+            print('Saved. Run setup with --github-only whenever you want to start a workflow.')
+            return
+        if choice == '3':
+            from image_setup import replace_photos
+            replace_photos(repo)
+            print('\nNext: 1. Check setup   2. Rotate now   3. Replace photos   0. Finish')
+            continue
+        if choice in ('1', '2'):
+            break
+        print('Choose 1, 2, 3, or 0.')
+    if not prepare_workflow(repo):
+        return
+    mode = 'check' if choice == '1' else 'rotate'
+    if not run_workflow(repo, mode):
+        return
+    if mode == 'check' and input('Change your profile picture now? [y/N]: ').strip().lower() in ('y', 'yes'):
+        run_workflow(repo, 'rotate')
+
+
 def configure_github(session_file):
     try:
         if not ensure_gh():
             manual_instructions(session_file)
             return
+        step('2 / 3', 'GitHub')
         status = run_gh(['auth', 'status', '--hostname', 'github.com'], capture_output=True)
         if status.returncode:
             print('Sign in to GitHub in your browser. Follow the device-code instructions below.')
@@ -232,15 +298,8 @@ def configure_github(session_file):
             manual_instructions(session_file, repo)
             return
         print('INSTA_SESSION saved. Your Instagram password was not uploaded.')
-        if input('Start the workflow setup check now? (no picture change) [Y/n]: ').strip().lower() not in ('n', 'no'):
-            if not prepare_workflow(repo):
-                return
-            result = run_gh(['workflow', 'run', 'change-dp.yml', '--repo', 'github.com/' + repo, '-f', 'mode=check'], capture_output=True)
-            if result.returncode:
-                print('Could not start the check. Push the updated workflow, enable Actions, then run mode check from GitHub.')
-            else:
-                print('Setup check requested. Read its result in Actions; this does not mean the check passed yet.')
-        print(f'View results: https://github.com/{repo}/actions/workflows/change-dp.yml')
+        finish_setup(repo)
+
     except (OSError, ValueError, KeyError):
         print('GitHub setup could not finish. Your local session is saved. Retry with python setup.py --github-only.')
         manual_instructions(session_file)

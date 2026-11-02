@@ -1,4 +1,5 @@
 """Interactive setup; credentials are prompted for, never passed on the command line."""
+from terminal_ui import prompt as input, choose, step
 import getpass
 import argparse
 from urllib.parse import unquote
@@ -58,12 +59,10 @@ def authenticate(client):
 
 def _authenticate(client):
     client.challenge_code_handler = verification_code
-    print('Choose a login method:\n')
-    print('  1. Username and password')
-    print('  2. Browser session')
-    print('  3. Reuse a trusted local session (no password login)')
-    print('  0. Exit\n')
-    choice = input('Enter a number [1]: ').strip() or '1'
+    choice = choose('Choose a login method:', [
+        ('1', 'Username and password'), ('2', 'Browser session'),
+        ('3', 'Reuse a trusted local session (no password login)'), ('0', 'Exit')],
+        '1', 'Enter a number [1]: ')
     if choice == '0':
         raise SystemExit(0)
     if choice == '1':
@@ -115,7 +114,9 @@ def main(argv=None):
         except (KeyboardInterrupt, EOFError):
             raise SystemExit('GitHub setup cancelled; your local session is saved.') from None
         return
-    print('\nInstagram DP setup — your password stays on this computer.\n')
+    from terminal_ui import banner
+    banner()
+    step('1 / 3', 'Instagram')
     try:
         client = make_client()
         authenticate(client)

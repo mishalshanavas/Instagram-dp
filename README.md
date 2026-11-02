@@ -1,40 +1,62 @@
 # Instagram Profile Picture Changer
 
-Rotate your Instagram profile picture through a folder of photos using GitHub Actions.
+<div align="center">
 
-**Works on Windows, macOS, and Linux.** You need a GitHub account and Python 3.11 or newer on your computer. No Git commands required.
+![Demo: Instagram profile pictures rotating](https://github.com/user-attachments/assets/83b23108-116a-4a98-9d53-658ad9dec2a6)
 
-Your computer is needed for setup and session renewal. The scheduled bot runs on GitHub Actions, so you can turn your computer off afterward.
+*Demo at 10× speed*
 
- Instagram may ask you to verify a login or renew your session; this is unofficial automation, not a guarantee of uninterrupted updates.
+</div>
 
-## 1. Make your own copy and add photos
+Pick your photos, run the setup wizard, and let GitHub change your Instagram profile picture automatically.
 
-Click **Use this template → Create a new repository** if available, or **Fork**. Choose a private repository when creating from a template if you do not want your photos public. A fork may inherit the source repository's visibility.
+**Windows, macOS, and Linux supported.** Your computer only needs to be on during setup. Afterward, GitHub runs the bot for you.
 
-In your copy, open **assets/images → Add file → Upload files**. Upload PNG or JPG pictures named `1.png`, `2.png`, `3.png`, etc., then click **Commit changes**. Delete the sample pictures you do not want in the rotation using GitHub's file menu. Numeric names run first in numerical order, followed by other names alphabetically.
+**This repository is the template. Actions are disabled here.** Setup creates or selects your own copy, where the bot runs. Workflow files are included so your copy can use them.
 
-## 2. Run guided setup on your computer
+## Before you start
 
-In **your copy**, click **Code → Download ZIP** and extract it. Install [Python 3.11+](https://www.python.org/downloads/) if needed (on Windows, enable **Add Python to PATH**).
+You need:
 
-Open a terminal in the extracted folder containing `setup.py` (not inside `src`):
+- An Instagram account you can log into.
+- A free [GitHub account](https://github.com/signup).
+- [Python 3.11 or newer](https://www.python.org/downloads/). On Windows, enable **Add Python to PATH** during installation.
 
-- **Windows:** open the folder in File Explorer, type `powershell` in the address bar, and press Enter.
-- **macOS:** open Terminal, type `cd ` (with a trailing space), drag the extracted folder into Terminal, and press Enter.
-- **Linux:** open the folder in your file manager and choose **Open in Terminal**, or use `cd` to enter it.
+You don't need to install Python packages or GitHub CLI yourself—the wizard handles packages and offers to install GitHub CLI.
 
-Run the command for your computer:
+The wizard has arrow-key menus: use **↑ / ↓** to move and **Enter** to select. Press **Ctrl+C** to cancel. You can choose Instagram login, your repository, photo replacement, and workflow runs from the terminal. Terminals without interactive support show numbered prompts instead.
 
-| Computer | Command |
+## 1. Download the project
+
+At the top of this repository, click **Code → Download ZIP**. Extract the ZIP into a folder you can find easily, such as your Desktop.
+
+Open the extracted folder. You should see **setup.py**, **README.md**, and the **src** folder.
+
+## 2. Open a terminal in that folder
+
+| Your computer | How to open the terminal |
 | --- | --- |
-| Windows | `py setup.py` |
-| macOS | `python3 setup.py` |
-| Linux | `python3 setup.py` |
+| Windows | In File Explorer, open the extracted folder. Type `powershell` in its address bar and press Enter. |
+| macOS | Open Terminal. Type `cd ` with a space, drag the extracted folder into Terminal, then press Enter. |
+| Linux | Right-click inside the extracted folder and choose **Open in Terminal**. |
 
-If Windows cannot find `py`, try `python setup.py`. Reopen the terminal after installing Python. You do not need WSL, Docker, or a Linux computer.
+Run **one** command:
 
-The wizard installs its dependencies, clears the screen after a successful installation in an interactive terminal, then shows:
+**Windows:**
+
+```powershell
+py setup.py
+```
+
+**macOS / Linux:**
+
+```sh
+python3 setup.py
+```
+
+If Windows doesn't recognize `py`, try `python setup.py`. Keep the terminal open while packages install. Once installation finishes, the login menu appears.
+
+## 3. Log into Instagram
 
 ```text
 1. Username and password
@@ -43,94 +65,131 @@ The wizard installs its dependencies, clears the screen after a successful insta
 0. Exit
 ```
 
-Option 3 validates the existing local session without another password login. Never reuse a session that was exposed in Git history. Installation errors stay visible, and redirected logs are not cleared.
+For your first setup, select **Username and password** and press Enter (or type **1** in plain mode). Enter your username and password. **Nothing appears while you type your password—that is normal.** Press Enter when finished.
 
-The wizard asks for your Instagram login and validates it. Passwords and verification codes are hidden while you type. It supports password login, a two-factor code prompt, supported email/SMS challenges, and a browser-session option. Some Instagram challenges must be completed in the Instagram app before retrying.
+Enter a verification code if asked. If Instagram requires approval in its app, complete that prompt before trying again.
 
-After Instagram login, the wizard handles GitHub setup:
+Wait for **“Login validated. Your private session is saved locally.”**
 
-1. Detects **GitHub CLI (`gh`)** and offers to install it if a supported package manager is available (see below). You do not need GitHub CLI installed before starting.
-2. Starts [GitHub browser sign-in](https://cli.github.com/manual/gh_auth_login) if needed. Follow the displayed device code instructions.
-3. Lists forks and template-created copies of `mishal-scet/Instagram-dp` owned by your signed-in account in a numbered picker. Select a copy by number, or press **Enter** to choose the first non-archived copy marked `[default]`. Choose **N** to create a new copy even when others exist, **M** to enter a repository manually, or **0** to exit. When no usable copies exist, Enter opens the creation flow; creation still asks for the required choices before creating anything. The source repository is also listed if you own it. Archived copies are shown but cannot be selected.
-   Discovery checks all repository pages and GitHub provenance metadata; renamed copies are supported. Copies made by manually uploading files may not have provenance and must be selected manually.
-   New copies use GitHub templates with a choice of private/public visibility. If the source is not marked as a template, the wizard explains that and offers a fork instead. It never changes the source repository settings. Repository admin access is checked before saving secrets.
-4. Shows the target repository and saves **INSTA_SESSION** after you confirm. No copying JSON into GitHub required.
-5. Offers to start the workflow in **check** mode and gives you the results link. A dispatched check is not a passed check—read its result.
+Already completed Instagram setup on this computer? Choose **3** to reuse your saved session. Option **2** is an advanced alternative using your browser's `sessionid` cookie; it is not guaranteed to work with Instagram's mobile API.
 
-GitHub CLI installation options:
+## 4. Let the wizard set up GitHub
 
-| System | Installer used by the wizard | If the installer is unavailable |
-| --- | --- | --- |
-| Windows | Winget | Install GitHub CLI from [its official site](https://cli.github.com/), then reopen PowerShell. |
-| macOS | Homebrew, if already installed | Follow the [official GitHub CLI installation instructions](https://cli.github.com/), then reopen Terminal. |
-| Linux | apt, dnf, or pacman, if available | Follow the [official GitHub CLI installation instructions](https://cli.github.com/) for your distribution. |
+Follow the prompts in the same terminal:
 
-The wizard does not install the package manager itself. Installation may request administrator access; if it fails, use the official instructions or the manual secret steps printed by the wizard.
+1. **Install GitHub CLI:** accept the installation offer if it appears. It uses Winget on Windows, Homebrew on macOS, or apt/dnf/pacman on supported Linux systems. If none is available, follow the printed installation link, reopen your terminal, and resume using the command below.
+2. **Sign in:** follow GitHub's browser/device-code instructions. This browser sign-in may be required once; you won't need the GitHub website to start the bot afterward.
+3. **Choose your repository:** select an existing copy by number. For a first setup, choose **N** to create one. The wizard uses a template when available, or asks whether to create a fork. Review the repository name before continuing.
+4. **Save your session:** press Enter at **“Save/replace INSTA_SESSION…”**. The wizard uploads it securely as a GitHub Actions secret.
 
-If GitHub setup is interrupted, resume without another Instagram login:
+Your Instagram password is not uploaded. **Never upload or share `data/session.json`**, which contains your private login session.
 
-| System | Retry command |
+## 5. Add your own pictures
+
+At the final setup menu, select **Replace photos from a folder** (or type **3** in plain mode).
+
+1. Put the photos you want in one folder on your computer. PNG and JPG files are supported.
+2. Paste that folder's full path into the terminal. For example, `C:\Users\You\Pictures\Instagram` on Windows or `/Users/you/Pictures/Instagram` on macOS.
+3. Review the displayed photo list. Type **y** to upload it.
+
+The wizard checks the files, numbers them automatically, replaces the repository's old PNG/JPG photos, and restarts the rotation at the first picture. Files are ordered by numeric filename first, then alphabetically. Your originals stay on your computer. Files uploaded through this wizard are renamed automatically to `1.png`, `2.jpg`, and so on, preserving their file extensions. Files uploaded manually through GitHub are not automatically renamed.
+
+**No Git commands or GitHub upload page needed.** Uploading replaces the complete photo set, so include every photo you want to keep. The default is **No** until you confirm. Old photos remain in Git history, and pictures uploaded to a public repository are public.
+
+The included placeholders are 11 distinct solid-color PNGs, each 320 × 320 pixels (1:1 square).
+
+You can upload 1–100 images, each up to 20 MB. After uploading, choose **1** to check setup or **2** to change your picture now. If you skip this step, the sample photos remain in the rotation.
+
+## 6. Start the bot from your terminal
+
+At the end of setup, the wizard shows:
+
+```text
+1. Check login and photos without changing your picture (recommended)
+2. Change your profile picture now
+3. Replace photos from a folder on this computer
+0. Finish without running a workflow
+```
+
+Select **Check login and photos** and press **Enter**. The wizard enables the workflow if needed, starts it through GitHub CLI, and displays progress in your terminal. Enabling it also activates scheduled rotations.
+
+When the check passes, type **y** at **“Change your profile picture now?”** to run your first rotation. Wait for the success message. **No trip to the GitHub Actions page needed.**
+
+The next change is scheduled 2–5 hours later. GitHub checks hourly, so actual timing can be later. You can now close the terminal and turn off your computer.
+
+### Already closed setup? Resume here
+
+This skips another Instagram login and takes you through repository selection and the final run menu:
+
+| System | Command |
 | --- | --- |
 | Windows | `py setup.py --github-only` |
 | macOS / Linux | `python3 setup.py --github-only` |
 
-Manual secret instructions remain available if you skip CLI installation or cannot sign in.
+### Run or pause later with GitHub CLI
 
-**Never upload or commit `data/session.json`.** It contains login credentials. The file is ignored by Git, and your Instagram password is not needed in GitHub Secrets.
+Replace `YOUR-NAME/YOUR-REPO` with the repository selected in setup.
 
-## 3. Check setup, then start
+**Change your picture now:**
 
-Open **Actions** in your repository. Enable workflows if prompted.
+```sh
+gh workflow run change-dp.yml --repo YOUR-NAME/YOUR-REPO -f mode=rotate
+```
 
-If the wizard already started a check, open its results link. Otherwise, choose **Update Instagram DP → Run workflow → mode: check → Run workflow**. Open that run and read its summary. A successful check validates login and images without changing your picture.
+**See recent results:**
 
-Then run again with **mode: rotate** for your first picture change. Scheduled runs also rotate automatically: once Actions is enabled, they can run before your manual check. To pause automation, use **Update Instagram DP → … → Disable workflow**.
+```sh
+gh run list --repo YOUR-NAME/YOUR-REPO --workflow change-dp.yml --limit 5
+```
 
-Actions checks hourly, at minute 17, and changes the picture when the next randomized 2–5 hour interval is due. Hourly checks round this up and GitHub can delay runs. There is no exact-time guarantee. Workflows run on the repository's default branch.
+**Pause automatic changes:**
 
-## When something fails
+```sh
+gh workflow disable change-dp.yml --repo YOUR-NAME/YOUR-REPO
+```
 
-| Message / problem | What to do |
+**Resume automatic changes:**
+
+```sh
+gh workflow enable change-dp.yml --repo YOUR-NAME/YOUR-REPO
+```
+
+## Stuck?
+
+| What you see | What to do |
 | --- | --- |
-| Python command not found | Install Python; on Windows try `py`, on macOS/Linux try `python3`. |
-| Python cannot create a virtual environment | On Linux, install your distribution's Python venv package. On Windows/macOS, repair or reinstall Python with pip support. Then rerun setup. |
-| Missing INSTA_SESSION | Complete step 2 in the same repository where Actions is running. |
-| HTTP 429 / Too many requests | Stop login attempts and wait; check Instagram for verification prompts. Setup disables transport retries and preserves the previous session. See the rate-limit notes below. |
-| Login/session cannot be validated | Open Instagram, resolve prompts, then rerun setup and replace the secret. |
-| Verification is not supported | Complete it in Instagram and retry; the browser-session option may also work. |
-| No pictures / unreadable image | Upload valid PNG/JPG files to `assets/images`, removing broken files. |
-| GitHub CLI cannot save secret | Confirm admin access to your own repository, then use the GitHub retry command for your system above. |
-| Update succeeds but Git push fails | Check branch rules and Actions write permissions; the image may already have changed, and the next run may repeat it. |
-| Scheduled run does not appear | Confirm workflows are enabled on the default branch; inspect the latest run summary. GitHub may delay or disable inactive schedules. |
+| Python command not found | Install Python 3.11+, reopen the terminal, and retry the command for your computer. |
+| Cannot create a virtual environment | On Linux, install your distribution's Python venv package. On Windows/macOS, repair Python with pip support. |
+| HTTP 429 / Too many requests | Stop repeated attempts. Check Instagram for prompts and wait before retrying on your usual network. There is no guaranteed cooldown. |
+| Session expired or login rejected | Open Instagram to resolve prompts, then run full setup again and save the new secret. |
+| No repositories listed | Choose **N** to create one, or **M** to enter an existing repository manually. |
+| Secret upload failed | Confirm that you own/administer the selected repository and signed into the correct GitHub account. Retry with `--github-only`. |
+| Workflow missing or differs from setup | The selected repository has older code. Update its project files on the default branch, then retry with `--github-only`. |
+| Workflow failed | Use the `gh run view … --log-failed` command printed by setup to read the failed step. |
+| No images or unreadable image | Upload valid PNG/JPG pictures to your repository's `assets/images` folder. |
 
-### HTTP 429 during login
+Instagram can expire sessions or require verification. This uses an unofficial API, so uninterrupted automation is not guaranteed. Existing sessions are reused until rejected; the workflow does not automatically replace your GitHub secret.
 
-The specific fresh-login failure in [instagrapi issue #2852](https://github.com/subzeroid/instagrapi/issues/2852) was fixed in **3.0.21** by requiring TLS 1.3 in the default private curl transport ([upstream fix](https://github.com/subzeroid/instagrapi/pull/2862)). This project now pins **instagrapi 3.2.2** and **Pillow 13.0.0**. Rerun the setup command for your platform to install the updated dependencies; no custom TLS patch or extra transport package is needed.
+<details>
+<summary>Advanced: proxy and older installations</summary>
 
-This fixes a known cause, not every possible HTTP 429. If it continues after updating, stop repeated attempts, check Instagram for verification prompts, and follow [instagrapi's rate-limit guidance](https://subzeroid.github.io/instagrapi/latest/usage-guide/best-practices/). Use a consistent network and device identity; there is no guaranteed cooldown. A trusted saved session may avoid a fresh password login, but browser cookies are not guaranteed to work with Instagram's private mobile API.
+Set `PROXY_URL` as a GitHub Actions secret if you use a stable proxy. Set the same environment variable locally before login. A failed configured proxy stops the run rather than silently switching networks.
 
-The wizard stops on rate limits instead of automatically switching login methods. Failed validation never overwrites your saved session. If you already have a validated local session and only need to configure GitHub, use the `--github-only` command above.
+This project pins instagrapi 3.2.2 and Pillow 13.0.0. The specific older TLS-related login failure was fixed upstream in [instagrapi 3.0.21](https://github.com/subzeroid/instagrapi/issues/2852); that does not fix every HTTP 429.
 
-### How sessions are renewed
+If you previously committed a session file, revoke that session and create a new one. Removing the file doesn't erase it from Git history. The old `INSTA_USER` and `INSTA_PASS` secrets are no longer used.
 
-The workflow reads `INSTA_SESSION` into memory and never commits it, caches it, or uploads it as an artifact. Each run starts from that saved secret. It intentionally does **not** update GitHub secrets automatically: when Instagram expires or rejects the session, rerun the local wizard to replace it. Local rotations save refreshed settings to the ignored local file.
+</details>
 
-If you used an older version that committed `data/session.json`, **revoke that Instagram session and create a new one**. Untracking the file does not erase credentials from earlier commits or forks. Old `INSTA_USER` and `INSTA_PASS` repository secrets are no longer used and can be removed.
+<details>
+<summary>For developers: run tests</summary>
 
-### Optional advanced setup: proxy
-
-Set `PROXY_URL` as an Actions secret if you need a stable proxy, for example `http://user:password@host:port`. Use the same proxy locally by setting the `PROXY_URL` environment variable before setup. The client uses the configured proxy for its authenticated validation and update. A failed proxy stops the run; it does not silently switch networks. Proxy URLs are never printed by project code.
-
-### Development and tests
-
-These commands are for contributors; normal setup only needs the wizard above.
-
-**Windows (PowerShell):**
+**Windows:**
 
 ```powershell
 py -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
-.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+.\.venv\Scripts\python.exe -m unittest discover -s tests -p test_app.py -v
 ```
 
 **macOS / Linux:**
@@ -141,25 +200,8 @@ python3 -m venv .venv
 .venv/bin/python -m unittest discover -s tests -v
 ```
 
-No virtual-environment activation is required. Tests use fake clients; they never log into Instagram or change a profile. The workflow shell tests require Bash and are intended for Linux/CI; use `-p 'test_app.py'` instead of `-v` to run just the core application tests on a Windows machine without Bash.
+Tests use fake clients. Workflow shell tests require Bash; CI runs on Ubuntu. Windows and macOS setup paths have not been tested on physical machines.
 
-For a real authenticated check without changing your picture:
-
-| System | Command |
-| --- | --- |
-| Windows | `.\.venv\Scripts\python.exe src/main.py --check` |
-| macOS / Linux | `.venv/bin/python src/main.py --check` |
-
-A valid session is required. Automated CI currently runs on Ubuntu; Windows and macOS setup paths have not been verified on physical machines.
-
-| File | Purpose |
-| --- | --- |
-| `setup.py` | One-command dependency installation and wizard launcher |
-| `src/create_session.py` | Interactive login and GitHub secret setup |
-| `src/main.py` | Validate setup or rotate pictures |
-| `src/github_setup.py` | GitHub CLI installation, browser sign-in, secret upload, and workflow check |
-| `src/session_utils.py` | Shared client and private local session handling |
-| `data/index.txt` | Next image position |
-| `data/next_run.txt` | Next due time; generated after a successful scheduled/manual rotation |
+</details>
 
 Built with [instagrapi](https://github.com/subzeroid/instagrapi). MIT license.
