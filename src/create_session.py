@@ -1,6 +1,5 @@
 """Interactive setup; credentials are prompted for, never passed on the command line."""
-from terminal_ui import prompt as input, choose, step
-import getpass
+from terminal_ui import prompt as input, choose, step, secret
 import argparse
 from urllib.parse import unquote
 
@@ -16,7 +15,7 @@ class SetupError(Exception):
 
 
 def verification_code(*_args, **_kwargs):
-    return getpass.getpass('Instagram verification code (hidden): ').strip()
+    return secret('Instagram verification code').strip()
 
 
 RATE_LIMIT_MESSAGE = (
@@ -67,7 +66,7 @@ def _authenticate(client):
         raise SystemExit(0)
     if choice == '1':
         username = input('Instagram username: ').strip()
-        password = getpass.getpass('Instagram password (hidden): ')
+        password = secret('Instagram password')
         if not username or not password:
             raise SetupError('Username and password are required.')
         try:
@@ -78,7 +77,7 @@ def _authenticate(client):
             raise SetupError('Instagram did not confirm the login.')
     elif choice == '2':
         print('In your browser: instagram.com → developer tools → Application/Storage → Cookies → sessionid.')
-        token = unquote(getpass.getpass('Paste sessionid (hidden): ').strip())
+        token = unquote(secret('Paste sessionid').strip())
         if not token:
             raise SetupError('A session ID is required.')
         client.login_by_sessionid(token)

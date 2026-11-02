@@ -63,7 +63,7 @@ Wait for package installation to finish. The wizard will clear the screen and op
 
 Select **Username and password** for your first login. Enter your details and any verification code requested.
 
-Your password stays invisible as you type. The keyboard is working; it's just being discreet.
+Your password appears as `*****` while you type—visible progress, private characters. Basic terminals fall back to invisible entry.
 
 Wait for **“Login validated. Your private session is saved locally.”** If Instagram asks you to approve a login in its app, complete that prompt before trying again.
 

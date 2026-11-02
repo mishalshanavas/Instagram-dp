@@ -32,3 +32,15 @@ class TerminalTests(unittest.TestCase):
             confirm.return_value.unsafe_ask.return_value = False
             self.assertEqual(ui.prompt('Replace photos? [y/N]: '), 'n')
         self.assertFalse(confirm.call_args.kwargs['default'])
+
+    def test_interactive_secret_uses_password_prompt(self):
+        with patch.object(ui, 'interactive', return_value=True), patch('questionary.password') as password:
+            password.return_value.unsafe_ask.return_value = 'private'
+            self.assertEqual(ui.secret('Password'), 'private')
+        password.assert_called_once()
+
+    def test_cancel_secret_never_returns_a_value(self):
+        with patch.object(ui, 'interactive', return_value=True), patch('questionary.password') as password:
+            password.return_value.unsafe_ask.return_value = None
+            with self.assertRaises(KeyboardInterrupt):
+                ui.secret('Password')

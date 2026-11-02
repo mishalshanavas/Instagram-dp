@@ -67,3 +67,15 @@ def step(number, label):
     if interactive():
         from rich.console import Console
         Console().rule(f'[cyan]{number}[/cyan] · {label}', align='left')
+
+
+def secret(message):
+    """Show asterisks in interactive terminals; retain secure no-echo fallback."""
+    if not interactive():
+        import getpass
+        return getpass.getpass(message + ' (hidden): ')
+    import questionary
+    value = questionary.password(message, style=style(), qmark='›').unsafe_ask()
+    if value is None:
+        raise KeyboardInterrupt
+    return value
