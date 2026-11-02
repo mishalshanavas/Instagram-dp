@@ -1,22 +1,42 @@
+<div align="center">
+
 # Instagram DP
 
-Rotate your Instagram profile picture through a collection of photos, with a guided terminal setup and GitHub Actions.
+### A fresh profile picture. Without the daily decision.
 
-Works on **Windows, macOS, and Linux**. Your computer is only needed for setup; GitHub runs the scheduled changes afterward.
+Choose your photos. Set up once. Let the rotation run.
 
-![Instagram DP demo](https://github.com/user-attachments/assets/83b23108-116a-4a98-9d53-658ad9dec2a6)
+![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB?style=flat-square)
+![Windows, macOS, Linux](https://img.shields.io/badge/Windows%20%C2%B7%20macOS%20%C2%B7%20Linux-334155?style=flat-square)
+[![MIT license](https://img.shields.io/badge/License-MIT-14B8A6?style=flat-square)](LICENSE)
 
-*Demo at 10× speed. Real rotations give your followers time to recover.*
+[**Start here**](#get-started) · [Documentation](docs/Home.md) · [Troubleshooting](docs/Troubleshooting.md)
 
-It focuses on:
+![Instagram profile picture rotation demo](https://github.com/user-attachments/assets/83b23108-116a-4a98-9d53-658ad9dec2a6)
 
-- **Simple setup:** arrow-key menus, masked passwords, and automatic dependency installation.
-- **Your own copy:** repository discovery or automatic private template creation.
-- **Easy photo replacement:** upload a folder; validation and numbering are handled for you.
-- **Visible progress:** login diagnostics and workflow results in the terminal.
-- **Cloud scheduling:** random 2–5 hour intervals, checked hourly, with times in your timezone.
+*Demo at 10× speed. Your profile does not need that much caffeine.*
 
-> **This repository is the template. Actions are disabled here.** Setup configures automation in your own copy.
+</div>
+
+---
+
+Instagram DP rotates your Instagram profile picture through a collection of your photos. A guided terminal wizard connects your accounts, uploads your pictures, and starts the automation in your own GitHub repository.
+
+**Your computer handles setup. GitHub handles the schedule.** Close the terminal and switch off your computer once setup is complete.
+
+## What it does
+
+| Feature | What that means for you |
+| --- | --- |
+| Guided setup | Arrow-key menus, masked passwords, and automatic dependency installation |
+| Your own repository | Select an existing copy or let setup create a private one |
+| Folder-to-profile uploads | Choose photos locally; validation and numbering are automatic |
+| Automatic rotation | Random 2–5 hour intervals, checked hourly by GitHub Actions |
+| Local time displays | Choose your timezone and see when the next change is due |
+| Terminal controls | Check, rotate, replace photos, and change settings without opening Actions |
+
+> [!NOTE]
+> **This repository is the template.** Actions are disabled here. Your copy runs the bot; the template supplies the code and solid-color sample images.
 
 ## Prerequisites
 
@@ -47,9 +67,16 @@ py setup.py
 python3 setup.py
 ```
 
-Setup connects your accounts, selects a repository, asks for your timezone, and recommends replacing the placeholder photos. It then checks setup and requests the first rotation automatically. A successful read-only check does not guarantee Instagram will allow a profile change.
+The wizard walks you through:
 
-## Must-know tips
+1. **Connect Instagram** — sign in and complete verification if requested.
+2. **Connect GitHub** — choose your copy, select a timezone, and save the session secret.
+3. **Choose your photos** — upload a folder or explicitly keep the existing images.
+4. **Start rotating** — setup checks the configuration, then requests the first picture change.
+
+If an upload or check fails, setup stops before requesting a rotation. A successful read-only check does not guarantee Instagram will allow the write. [See every prompt explained →](docs/First-setup.md)
+
+## Your photos, your controls
 
 - Use **↑ / ↓** to move, **Enter** to select, and **Ctrl+C** to cancel.
 - [Replace the complete photo set](docs/Photos.md); local originals stay untouched.
@@ -93,11 +120,12 @@ Each guide explains the prerequisites, steps, expected result, and what to do ne
 
 The guides live in this repository so they travel with ZIP downloads and template copies. [Wiki publishing instructions](docs/Wiki-publishing.md) include the prepared export and sidebar. The original demo URL is backed up in [docs/demo-url.txt](docs/demo-url.txt).
 
-## Support
+## When something needs attention
 
 Read [Troubleshooting](docs/Troubleshooting.md) before opening an issue. Include your OS, Python version, GitHub CLI version, and sanitized error text. Never include passwords, cookies, session files, or verification codes.
 
-This uses an unofficial Instagram API. Verification prompts, expired sessions, and account/network restrictions can interrupt automation.
+> [!IMPORTANT]
+> This uses an unofficial Instagram API. Verification prompts, expired sessions, and account/network restrictions can interrupt automation. Scheduled runs may be delayed; this is not an exact-time scheduler.
 
 ## License
 
