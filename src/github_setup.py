@@ -366,8 +366,7 @@ def configure_github(session_file, manage=False):
         status = run_gh(['auth', 'status', '--hostname', 'github.com'], capture_output=True)
         if status.returncode:
             print('Sign in to GitHub in your browser. Follow the device-code instructions below.')
-            login = run_gh(['auth', 'login', '--hostname', 'github.com', '--git-protocol', 'https', '--web'])
-            if login.returncode:
+            if not recover_github_login():
                 print('GitHub sign-in did not finish. Your local session is safe.')
                 manual_instructions(session_file)
                 return
