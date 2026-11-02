@@ -4,6 +4,7 @@ import logging
 import os
 from pathlib import Path
 
+from failure_help import instagram_failure
 from session_utils import RECOVERY, SESSION_FILE, make_client, parse_session, save_session
 
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
@@ -77,15 +78,14 @@ def main(argv=None):
     index = read_index() % len(images)
     client = login_user()
     if args.check:
-        logger.info('Setup works: login validated; %s images ready. No profile change made.', len(images))
+        logger.info('Setup works: login validated; %s images ready. No profile change made. This read-only check does not test permission to change your picture.', len(images))
         return
     try:
         result = client.account_change_picture(str(IMAGE_FOLDER / images[index]))
         if not result:
             raise RuntimeError('No success response')
-    except Exception:
-        raise SystemExit('Instagram did not confirm the profile update. Index was not advanced. '
-                         'Check Instagram for verification prompts before retrying.') from None
+    except Exception as exc:
+        raise SystemExit('DP_ERROR: ' + instagram_failure(exc) + ' Index was not advanced.') from None
     write_index((index + 1) % len(images))
     # Local runs retain refreshed settings. CI intentionally reuses its secret until renewal.
     if os.getenv('GITHUB_ACTIONS') != 'true':

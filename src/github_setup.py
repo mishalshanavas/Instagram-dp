@@ -111,8 +111,8 @@ def create_repository(user):
         if re.fullmatch(r'[A-Za-z0-9_.-]+', name) and name not in ('.', '..'):
             break
         print('Use letters, numbers, dots, underscores, or hyphens.')
-    print('  1. Private (default)\n  2. Public')
-    visibility = input('Visibility [1]: ').strip() or '1'
+    visibility = choose('Repository visibility', [('1', 'Private — only you can see your photos'),
+                         ('2', 'Public — anyone can see your photos')], '1', 'Visibility [1]: ')
     if visibility not in ('1', '2'):
         print('Invalid visibility; nothing was created.')
         return None
@@ -208,6 +208,23 @@ def prepare_workflow(repo):
     return True
 
 
+def show_run_failure(repo, run_id):
+    logs = run_gh(['run', 'view', run_id, '--repo', 'github.com/' + repo, '--log-failed'],
+                  capture_output=True, text=True)
+    if logs.returncode or not isinstance(logs.stdout, str):
+        return
+    # Show our own safe error messages, never arbitrary API response bodies.
+    messages = [line.split('DP_ERROR: ', 1)[1] for line in logs.stdout.splitlines() if 'DP_ERROR: ' in line]
+    if messages:
+        print('\nWhat happened: ' + messages[-1])
+    elif re.search(r'\[403\] POST .*accounts/change_profile_picture/', logs.stdout):
+        from failure_help import instagram_failure
+        error = type('ClientForbiddenError', (Exception,), {})()
+        print('\nWhat happened: ' + instagram_failure(error))
+    else:
+        print('No safe Instagram error summary was available. Use the command above for the failed step.')
+
+
 def run_workflow(repo, mode):
     result = run_gh(['workflow', 'run', 'change-dp.yml', '--repo', 'github.com/' + repo,
                      '-f', 'mode=' + mode], capture_output=True, text=True)
@@ -224,8 +241,9 @@ def run_workflow(repo, mode):
     if watched.returncode:
         print('Workflow did not pass or could not be watched. Inspect it from this terminal:')
         print(f'gh run view {match.group(1)} --repo {repo} --log-failed')
+        show_run_failure(repo, match.group(1))
         return False
-    print('Setup check passed. Your picture was not changed.' if mode == 'check'
+    print('Setup check passed. Your picture was not changed. This read-only check does not test profile-update permission.' if mode == 'check'
           else 'Your profile picture was updated and the next rotation was scheduled.')
     return True
 

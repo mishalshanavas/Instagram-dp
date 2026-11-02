@@ -119,6 +119,8 @@ Finish
 
 Select **Check login and photos**. The wizard checks the remote workflow, offers to enable it if disabled, and watches the run in your terminal.
 
+The check validates login and images only; Instagram can still refuse a profile update. If a run fails, the wizard fetches a safe error summary automatically.
+
 After the check passes, answer **yes** to **“Change your profile picture now?”** Wait for the success message. You don't need to open the GitHub Actions page.
 
 **What happens next:** each successful rotation schedules the next change 2–5 hours later. GitHub checks hourly, so actual timing may be later. Enabling the workflow also enables scheduled rotations, which can run independently of your manual check.
@@ -165,6 +167,7 @@ gh workflow enable change-dp.yml --repo YOUR-NAME/YOUR-REPO
 | --- | --- |
 | Python command not found | Install Python 3.11+, reopen the terminal, and use the command for your system above. |
 | Cannot create a virtual environment | On Linux, install your distribution's Python venv package. On Windows/macOS, repair Python with pip support. |
+| HTTP 403 on profile change | Login may work while writes are refused. Check the official app for restrictions; if using browser-session login, try full setup with username/password and replace the secret. No automatic retry is made. |
 | HTTP 429 / Too many requests | Stop repeated attempts. Check Instagram for prompts and wait before retrying on your usual network. There is no guaranteed cooldown. |
 | Session expired or login rejected | Resolve prompts in Instagram, then run full setup and save the new session secret. |
 | No repositories listed | Choose **Create a new repository**, or enter an existing repository manually. |

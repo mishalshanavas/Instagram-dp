@@ -24,7 +24,7 @@ class FinishSetupTests(unittest.TestCase):
         self.assertIn('picture was updated', self.output.getvalue())
 
     def test_failed_remote_run_not_reported_as_success(self):
-        with patch.object(gh, 'run_gh', side_effect=[Mock(returncode=0, stdout='https://github.com/me/repo/actions/runs/123'), Mock(returncode=1)]):
+        with patch.object(gh, 'run_gh', side_effect=[Mock(returncode=0, stdout='https://github.com/me/repo/actions/runs/123'), Mock(returncode=1), Mock(returncode=1)]):
             self.assertFalse(gh.run_workflow('me/repo', 'rotate'))
         self.assertNotIn('picture was updated', self.output.getvalue())
         self.assertIn('--log-failed', self.output.getvalue())

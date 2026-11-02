@@ -76,6 +76,7 @@ def _authenticate(client):
         if not logged_in:
             raise SetupError('Instagram did not confirm the login.')
     elif choice == '2':
+        print('Browser sessions may pass login checks but fail profile changes. Password login is preferred for automation.')
         print('In your browser: instagram.com → developer tools → Application/Storage → Cookies → sessionid.')
         token = unquote(secret('Paste sessionid').strip())
         if not token:
