@@ -53,7 +53,7 @@ Open a terminal **in that folder**:
 
 On Windows, try `python setup.py` if `py` is not recognized. Reopen your terminal after installing Python.
 
-Wait for package installation to finish. The wizard will clear the screen and open the setup menu.
+Package installation shows a compact animated progress bar instead of pip logs. If installation fails, the installer details stay visible. Once it finishes, the wizard clears the screen and opens the setup menu.
 
 **Controls:** **↑ / ↓** to move · **Enter** to select · **Ctrl+C** to cancel. Basic terminals show numbered choices instead.
 
@@ -64,6 +64,8 @@ Wait for package installation to finish. The wizard will clear the screen and op
 Select **Username and password** for your first login. Enter your details and any verification code requested.
 
 Your password appears as `*****` while you type—visible progress, private characters. Basic terminals fall back to invisible entry.
+
+During login, the terminal shows request stages and HTTP status codes, without passwords, cookies, or raw response bodies. These details are cleared after a successful login; failures remain visible.
 
 Wait for **“Login validated. Your private session is saved locally.”** If Instagram asks you to approve a login in its app, complete that prompt before trying again.
 

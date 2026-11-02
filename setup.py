@@ -5,6 +5,9 @@ import pathlib
 import subprocess
 import sys
 import venv
+import threading
+import itertools
+from contextlib import contextmanager
 
 
 def clear_screen():
@@ -15,6 +18,33 @@ def clear_screen():
         subprocess.run(['cmd', '/c', 'cls'], check=False)
     else:
         print('\033[2J\033[H', end='', flush=True)
+
+
+@contextmanager
+def install_progress():
+    """Indeterminate bar: pip has no reliable overall completion percentage."""
+    stop = threading.Event()
+    enabled = sys.stdout.isatty() and os.environ.get('TERM') != 'dumb'
+    def animate():
+        for position in itertools.cycle(range(18)):
+            if stop.is_set():
+                break
+            bar = ' ' * position + '====' + ' ' * (17 - position)
+            print('\r  [' + bar + '] Installing dependencies', end='', flush=True)
+            if stop.wait(0.12):
+                break
+    worker = threading.Thread(target=animate, daemon=True)
+    if enabled:
+        worker.start()
+    else:
+        print('Installing dependencies...', flush=True)
+    try:
+        yield
+    finally:
+        stop.set()
+        if enabled:
+            worker.join()
+            print('\r' + ' ' * 70 + '\r', end='', flush=True)
 
 
 def main():
@@ -30,8 +60,19 @@ def main():
         if not python.exists():
             print('Creating a private Python environment...', flush=True)
             venv.EnvBuilder(with_pip=True).create(environment)
-        print('Installing required packages...', flush=True)
-        subprocess.run([str(python), '-m', 'pip', 'install', '-r', str(root / 'src/requirements.txt')], check=True)
+        try:
+            with install_progress():
+                subprocess.run([str(python), '-m', 'pip', 'install', '--disable-pip-version-check',
+                                '-r', str(root / 'src/requirements.txt')],
+                               check=True, capture_output=True, text=True)
+        except subprocess.CalledProcessError as exc:
+            print('Dependency installation failed. Installer details:', file=sys.stderr)
+            if isinstance(exc.stdout, str):
+                print(exc.stdout, file=sys.stderr)
+            if isinstance(exc.stderr, str):
+                print(exc.stderr, file=sys.stderr)
+            raise
+        print('Dependencies ready.', flush=True)
         clear_screen()
         command = [str(python), str(root / 'src/create_session.py')]
         if args.github_only:

@@ -1,5 +1,5 @@
 """Interactive setup; credentials are prompted for, never passed on the command line."""
-from terminal_ui import prompt as input, choose, step, secret
+from terminal_ui import prompt as input, choose, step, secret, login_logs, clear_login_screen
 import argparse
 from urllib.parse import unquote
 
@@ -36,7 +36,8 @@ def disable_login_retries(client):
 def authenticate(client):
     disable_login_retries(client)
     try:
-        _authenticate(client)
+        with login_logs():
+            _authenticate(client)
     except (ClientThrottledError, PleaseWaitFewMinutes):
         raise SetupError(RATE_LIMIT_MESSAGE) from None
     except BadPassword:
@@ -121,6 +122,7 @@ def main(argv=None):
         client = make_client()
         authenticate(client)
         save_session(client, SESSION_FILE)
+        clear_login_screen()
         print('Login validated. Your private session is saved locally.')
         configure_github()
     except (KeyboardInterrupt, EOFError):

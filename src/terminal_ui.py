@@ -79,3 +79,48 @@ def secret(message):
     if value is None:
         raise KeyboardInterrupt
     return value
+
+
+def clear_login_screen():
+    if interactive():
+        from rich.console import Console
+        Console().clear()
+        banner()
+
+
+from contextlib import contextmanager
+
+
+@contextmanager
+def login_logs():
+    """Display only allowlisted request metadata, never raw library log text."""
+    import logging
+    import re
+    class SafeHandler(logging.Handler):
+        def emit(self, record):
+            message = record.getMessage()
+            response = re.search(r'\[(\d{3})\]\s+(GET|POST|PUT|DELETE)', message)
+            endpoint = re.search(r'https://[^\s]+', message)
+            if not endpoint:
+                return
+            url = endpoint.group()
+            if 'instagram.com' not in url:
+                return
+            stage = 'Instagram request'
+            for token, label in [('current_user', 'Validate session'), ('login', 'Login'),
+                                 ('challenge', 'Verification'), ('two_factor', 'Two-factor verification'),
+                                 ('bloks', 'Authentication flow')]:
+                if token in url:
+                    stage = label
+                    break
+            detail = f'{response.group(2)} · HTTP {response.group(1)}' if response else 'Sending request'
+            print(f'  {stage}: {detail}', flush=True)
+    logger = logging.getLogger('instagrapi')
+    previous = logger.handlers[:], logger.level, logger.propagate
+    logger.handlers = [SafeHandler()]
+    logger.setLevel(logging.INFO)
+    logger.propagate = False
+    try:
+        yield
+    finally:
+        logger.handlers, logger.level, logger.propagate = previous
