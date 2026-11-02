@@ -43,7 +43,7 @@ class GitHubSetupTests(unittest.TestCase):
         self.assertIn('does not mean the check passed', self.output.getvalue())
 
     def test_existing_login_skips_browser_and_can_skip_check(self):
-        run = self.configure(['owner/repo', '', 'n'], [result(), result(data={'nameWithOwner': 'owner/repo', 'viewerPermission': 'ADMIN'}), result()])
+        run = self.configure(['owner/repo', '0'], [result(), result(data={'nameWithOwner': 'owner/repo', 'viewerPermission': 'ADMIN'}), result()])
         self.assertEqual(run.call_count, 3)
         self.assertNotIn('auth login', str(run.call_args_list))
 
@@ -62,9 +62,10 @@ class GitHubSetupTests(unittest.TestCase):
         self.assertEqual(run.call_count, 2)
         self.assertIn('admin access', self.output.getvalue())
 
-    def test_decline_upload(self):
-        run = self.configure(['owner/repo', 'n'], [result(), result(data={'viewerPermission': 'ADMIN', 'nameWithOwner': 'owner/repo'})])
-        self.assertEqual(run.call_count, 2)
+    def test_upload_is_automatic(self):
+        run = self.configure(['owner/repo', '0'], [result(), result(data={'viewerPermission': 'ADMIN', 'nameWithOwner': 'owner/repo'}), result()])
+        self.assertEqual(run.call_count, 3)
+        self.assertIn('secret', run.call_args.args[0])
 
     def test_upload_failure_never_dispatches(self):
         run = self.configure(['owner/repo', ''], [result(), result(data={'viewerPermission': 'ADMIN', 'nameWithOwner': 'owner/repo'}), result(1)])
@@ -94,10 +95,10 @@ class GitHubSetupTests(unittest.TestCase):
         self.assertEqual(run.call_args.args[0], ['sudo', 'apt-get', 'install', '-y', 'gh'])
         self.assertIn('reopen your terminal', self.output.getvalue())
 
-    def test_missing_cli_can_decline_install(self):
+    def test_missing_cli_installs_without_confirmation(self):
         with patch.object(gh.sys, 'platform', 'darwin'), patch.object(gh.shutil, 'which', side_effect=lambda name: '/bin/brew' if name == 'brew' else None), patch('builtins.input', return_value='n'), patch.object(gh.subprocess, 'run') as run:
             self.assertFalse(gh.ensure_gh())
-        run.assert_not_called()
+        run.assert_called_once_with(['brew', 'install', 'gh'])
 
     def test_github_only_does_not_authenticate_instagram(self):
         with patch.object(create_session, 'SESSION_FILE', self.session), patch.object(create_session, 'authenticate') as login, patch.object(create_session, 'configure_github') as configure:

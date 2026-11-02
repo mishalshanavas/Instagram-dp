@@ -37,7 +37,7 @@ Have these ready:
 - **GitHub:** a [free account](https://github.com/signup).
 - **Python 3.11+:** [download Python](https://www.python.org/downloads/). On Windows, select **Add Python to PATH** during installation.
 
-The wizard installs Python dependencies and offers to install GitHub CLI. No Git commands required.
+The wizard installs Python dependencies and installs GitHub CLI when a supported package manager is available. No Git commands required.
 
 ### 1. Download and launch
 
@@ -75,10 +75,10 @@ For later setups, **Reuse a trusted local session** avoids another password logi
 
 Follow the prompts in the same terminal:
 
-1. **Install GitHub CLI** if offered. The wizard uses Winget, Homebrew, or a supported Linux package manager. If none is available, follow the installation link it prints.
+1. **GitHub CLI installs automatically** if missing. The wizard uses Winget, Homebrew, or a supported Linux package manager. If none is available, follow the installation link it prints.
 2. **Sign in** using GitHub's browser/device-code instructions. This browser authorization may be needed once.
-3. **Select your repository.** Choose an existing copy, or **Create a new repository**. Choose private visibility if you don't want your photos public. If template creation is unavailable, the wizard offers a fork instead.
-4. **Confirm the destination**, then accept **Save/replace INSTA_SESSION**. The wizard saves your session as a repository secret.
+3. **Select your repository.** Choose an existing copy. If none are found, setup automatically creates a private template copy with an available name. Choose private visibility if you don't want your photos public. If template creation is unavailable, the wizard offers a fork instead.
+4. **Session saved automatically.** The wizard shows the destination and saves `INSTA_SESSION` as a repository secret.
 
 > [!IMPORTANT]
 > **Never upload or share `data/session.json`.** It contains your Instagram login session. Your Instagram password is not uploaded to GitHub.
@@ -119,7 +119,7 @@ Replace photos from a folder
 Finish
 ```
 
-Select **Check login and photos**. The wizard checks the remote workflow, offers to enable it if disabled, and watches the run in your terminal.
+Select **Check login and photos**. The wizard checks the remote workflow, enables it if disabled, and watches the run in your terminal.
 
 The check validates login and images only; Instagram can still refuse a profile update. If a run fails, the wizard fetches a safe error summary automatically.
 

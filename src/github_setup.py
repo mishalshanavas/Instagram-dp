@@ -18,7 +18,7 @@ def ensure_gh():
         return True
     command = None
     if sys.platform == 'win32' and shutil.which('winget'):
-        command = ['winget', 'install', '--id', 'GitHub.cli', '--exact', '--source', 'winget']
+        command = ['winget', 'install', '--id', 'GitHub.cli', '--exact', '--source', 'winget', '--accept-package-agreements', '--accept-source-agreements']
     elif sys.platform == 'darwin' and shutil.which('brew'):
         command = ['brew', 'install', 'gh']
     elif sys.platform.startswith('linux'):
@@ -33,17 +33,16 @@ def ensure_gh():
                 break
     if command:
         print('GitHub CLI is missing. Installer: ' + ' '.join(command))
-        if input('Install it now? [Y/n]: ').strip().lower() not in ('n', 'no'):
-            result = subprocess.run(command)
-            if result.returncode == 0 and shutil.which('gh'):
+        result = subprocess.run(command)
+        if result.returncode == 0 and shutil.which('gh'):
+            return True
+        # Windows installers may update the registry PATH, not this process.
+        if sys.platform == 'win32':
+            folder = Path(os.environ.get('ProgramFiles', r'C:\Program Files')) / 'GitHub CLI'
+            if (folder / 'gh.exe').exists():
+                os.environ['PATH'] = str(folder) + os.pathsep + os.environ.get('PATH', '')
                 return True
-            # Windows installers may update the registry PATH, not this process.
-            if sys.platform == 'win32':
-                folder = Path(os.environ.get('ProgramFiles', r'C:\Program Files')) / 'GitHub CLI'
-                if (folder / 'gh.exe').exists():
-                    os.environ['PATH'] = str(folder) + os.pathsep + os.environ.get('PATH', '')
-                    return True
-            print('Installation did not make gh available in this terminal.')
+        print('Installation did not make gh available in this terminal.')
     print('Install GitHub CLI from https://cli.github.com/, reopen your terminal, and run python setup.py --github-only.')
     return False
 
@@ -62,7 +61,15 @@ SOURCE_REPO = 'mishalshanavas/Instagram-dp'
 def api_json(endpoint):
     result = run_gh(['api', endpoint], capture_output=True, text=True)
     if result.returncode:
-        raise ValueError('GitHub could not read repository metadata.')
+        # Never print raw stderr, which may contain credentials or proxy URLs.
+        error = result.stderr if isinstance(result.stderr, str) else ''
+        status = re.search(r'HTTP (\d{3})', error)
+        if status:
+            reason = {'401': 'GitHub authentication expired; run gh auth login.',
+                      '403': 'GitHub denied access; check token scopes, organization access, or API limits.',
+                      '404': 'GitHub could not find or grant access to the requested repository.'}.get(status.group(1), 'GitHub API request failed.')
+            raise ValueError(f'{reason} (HTTP {status.group(1)})')
+        raise ValueError('GitHub API request failed. Check network access and run gh auth status.')
     return json.loads(result.stdout)
 
 
@@ -95,10 +102,13 @@ def discover_repositories():
     return user, sorted(matches, key=lambda item: item[0].casefold())
 
 
-def create_repository(user):
+def create_repository(user, automatic=False):
     source = api_json('repos/' + SOURCE_REPO)
     if not source.get('is_template'):
         print('The source is not enabled as a template. Its owner must enable Settings → Template repository.')
+        if automatic:
+            print('A private template copy is unavailable. Use Create new to choose a fork explicitly.')
+            return None
         if input('Create a fork instead? [y/N]: ').strip().lower() not in ('y', 'yes'):
             return None
         result = run_gh(['repo', 'fork', 'github.com/' + SOURCE_REPO, '--clone=false'], capture_output=True, text=True)
@@ -106,21 +116,41 @@ def create_repository(user):
             print('Fork creation failed. Check your permissions or existing forks, then retry.')
             return None
         return user + '/' + SOURCE_REPO.split('/')[1]
-    while True:
-        name = input('New repository name [Instagram-dp]: ').strip() or 'Instagram-dp'
-        if re.fullmatch(r'[A-Za-z0-9_.-]+', name) and name not in ('.', '..'):
+    if automatic:
+        name = 'Instagram-dp'
+        # Check names without mistaking authentication/network failures for availability.
+        for suffix in range(1, 101):
+            candidate = name if suffix == 1 else f'{name}-{suffix}'
+            check = run_gh(['api', f'repos/{user}/{candidate}'], capture_output=True, text=True)
+            if check.returncode == 0:
+                continue
+            if 'HTTP 404' not in (check.stderr or ''):
+                print('Could not verify repository-name availability. Check gh auth status and network access.')
+                return None
+            name = candidate
             break
-        print('Use letters, numbers, dots, underscores, or hyphens.')
-    visibility = choose('Repository visibility', [('1', 'Private — only you can see your photos'),
-                         ('2', 'Public — anyone can see your photos')], '1', 'Visibility [1]: ')
-    if visibility not in ('1', '2'):
-        print('Invalid visibility; nothing was created.')
-        return None
-    repo = user + '/' + name
-    flag = '--private' if visibility == '1' else '--public'
-    print(f'Create {repo} from {SOURCE_REPO} ({flag[2:]})')
-    if input('Continue? [Y/n]: ').strip().lower() in ('n', 'no'):
-        return None
+        else:
+            print('No free default repository name found. Choose Create new to enter a name manually.')
+            return None
+        repo = user + '/' + name
+        flag = '--private'
+        print(f'Creating private template copy: {repo}')
+    else:
+        while True:
+            name = input('New repository name [Instagram-dp]: ').strip() or 'Instagram-dp'
+            if re.fullmatch(r'[A-Za-z0-9_.-]+', name) and name not in ('.', '..'):
+                break
+            print('Use letters, numbers, dots, underscores, or hyphens.')
+        visibility = choose('Repository visibility', [('1', 'Private — only you can see your photos'),
+                             ('2', 'Public — anyone can see your photos')], '1', 'Visibility [1]: ')
+        if visibility not in ('1', '2'):
+            print('Invalid visibility; nothing was created.')
+            return None
+        repo = user + '/' + name
+        flag = '--private' if visibility == '1' else '--public'
+        print(f'Create {repo} from {SOURCE_REPO} ({flag[2:]})')
+        if input('Continue? [Y/n]: ').strip().lower() in ('n', 'no'):
+            return None
     result = run_gh(['repo', 'create', repo, '--template', 'github.com/' + SOURCE_REPO, flag], capture_output=True, text=True)
     if result.returncode:
         print('Creation failed. The name may already exist, or your account may lack permission. Nothing was overwritten.')
@@ -132,8 +162,13 @@ def select_repository():
     try:
         print('Finding your forks and template copies...')
         user, matches = discover_repositories()
-    except (OSError, ValueError, KeyError):
-        print('Could not finish repository discovery; this does not mean you have no copies.')
+        if not matches:
+            print('No existing copies found. Creating a private copy automatically...')
+            return create_repository(user, automatic=True)
+    except (OSError, ValueError, KeyError) as exc:
+        reason = str(exc) if isinstance(exc, ValueError) else 'Network or GitHub response error.'
+        print(f'Could not finish repository discovery: {reason}')
+        print('Discovery failed; no repository was created. Sign in again with gh auth login if needed.')
         user, matches = None, []
     while True:
         if user:
@@ -199,8 +234,6 @@ def prepare_workflow(repo):
     info = api_json(f'repos/{repo}/actions/workflows/change-dp.yml')
     if info.get('state') != 'active':
         print('This workflow is disabled. Enabling it also enables scheduled picture changes.')
-        if input('Enable this workflow? [Y/n]: ').strip().lower() in ('n', 'no'):
-            return False
         enabled = run_gh(['workflow', 'enable', 'change-dp.yml', '--repo', 'github.com/' + repo], capture_output=True)
         if enabled.returncode:
             print('Could not enable the workflow. Check repository Actions permissions.')
@@ -306,9 +339,7 @@ def configure_github(session_file):
             return
         repo = metadata['nameWithOwner']
         print(f'Target repository: https://github.com/{repo}')
-        if input('Save/replace INSTA_SESSION in this repository? [Y/n]: ').strip().lower() in ('n', 'no'):
-            print('Skipped GitHub changes. Your session remains saved locally.')
-            return
+        print('Saving INSTA_SESSION automatically in the selected repository...')
         with session_file.open('rb') as session:
             result = run_gh(['secret', 'set', 'INSTA_SESSION', '--repo', 'github.com/' + repo], stdin=session, capture_output=True)
         if result.returncode:

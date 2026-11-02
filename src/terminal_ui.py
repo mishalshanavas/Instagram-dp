@@ -120,7 +120,20 @@ def login_logs():
     logger.handlers = [SafeHandler()]
     logger.setLevel(logging.INFO)
     logger.propagate = False
+    # instagrapi prints challenge codes directly rather than through logging.
+    from contextlib import redirect_stdout
+    original_stdout = sys.stdout
+    class PrivateOutput:
+        def write(self, text):
+            if 'Code entered ' in text:
+                text = '  Verification code submitted.'
+            return original_stdout.write(text)
+        def flush(self):
+            original_stdout.flush()
+        def __getattr__(self, name):
+            return getattr(original_stdout, name)
     try:
-        yield
+        with redirect_stdout(PrivateOutput()):
+            yield
     finally:
         logger.handlers, logger.level, logger.propagate = previous

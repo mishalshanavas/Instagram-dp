@@ -27,3 +27,11 @@ class LoginLogsTests(unittest.TestCase):
         with self.assertRaises(RuntimeError), login_logs():
             raise RuntimeError('failed')
         self.assertEqual(before, (logger.handlers, logger.level, logger.propagate))
+
+    def test_library_direct_print_does_not_expose_verification_code(self):
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output), login_logs():
+            print('Code entered "123456" for private-user (0 attempts by 5 seconds)')
+        self.assertNotIn('123456', output.getvalue())
+        self.assertNotIn('private-user', output.getvalue())
+        self.assertIn('Verification code submitted', output.getvalue())
