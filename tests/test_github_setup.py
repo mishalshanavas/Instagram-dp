@@ -34,7 +34,7 @@ class GitHubSetupTests(unittest.TestCase):
         self.addCleanup(p.__exit__, None, None, None)
 
     def configure(self, replies, results):
-        with patch.object(gh, 'prepare_photos', return_value=True), patch.object(gh, 'prepare_workflow', return_value=True), patch.object(gh, 'discover_repositories', side_effect=ValueError('offline')), patch.object(gh, 'ensure_gh', return_value=True), patch('builtins.input', side_effect=replies), patch.object(gh, 'run_gh', side_effect=results) as run:
+        with patch.object(gh, 'configure_timezone', return_value=True), patch.object(gh, 'prepare_photos', return_value=True), patch.object(gh, 'prepare_workflow', return_value=True), patch.object(gh, 'discover_repositories', side_effect=ValueError('offline')), patch.object(gh, 'ensure_gh', return_value=True), patch('builtins.input', side_effect=replies), patch.object(gh, 'run_gh', side_effect=results) as run:
             gh.configure_github(self.session)
         self.assertNotIn('PRIVATE-TEST-TOKEN', self.output.getvalue())
         return run

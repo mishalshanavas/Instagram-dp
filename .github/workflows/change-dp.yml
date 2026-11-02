@@ -25,6 +25,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     if: github.repository != 'mishalshanavas/Instagram-dp' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    env:
+      TIMEZONE: ${{ vars.TIMEZONE || 'UTC' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -115,3 +117,7 @@ jobs:
           else
             echo 'Profile picture updated. The next change is due in 2–5 hours, checked hourly.' >> "$GITHUB_STEP_SUMMARY"
           fi
+
+      - name: Display schedule in your timezone
+        if: always()
+        run: python3 src/timezone_setup.py

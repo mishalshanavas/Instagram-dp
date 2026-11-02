@@ -10,6 +10,9 @@ import github_setup as gh
 
 class FinishSetupTests(unittest.TestCase):
     def setUp(self):
+        schedule = patch.object(gh, 'show_remote_schedule')
+        schedule.start()
+        self.addCleanup(schedule.stop)
         snapshot = patch.object(gh, 'workflow_run_ids', return_value=set())
         snapshot.start()
         self.addCleanup(snapshot.stop)

@@ -1,5 +1,6 @@
 """GitHub CLI onboarding; never put session contents in command arguments."""
 from terminal_ui import prompt as input, choose, step
+from timezone_setup import configure_timezone, show_remote_schedule
 import json
 import os
 from pathlib import Path
@@ -349,6 +350,7 @@ def run_workflow(repo, mode):
         return False
     print('Setup check passed. Your picture was not changed. This read-only check does not test profile-update permission.' if mode == 'check'
           else 'Your profile picture was updated and the next rotation was scheduled.')
+    show_remote_schedule(repo)
     return True
 
 
@@ -358,11 +360,14 @@ def finish_setup(repo):
         choice = choose('What would you like to do?', [
             ('1', 'Check login and photos (recommended)'),
             ('2', 'Change your profile picture now'),
-            ('3', 'Replace photos from a folder'), ('0', 'Finish')],
+            ('3', 'Replace photos from a folder'), ('4', 'Change timezone'), ('0', 'Finish')],
             '1', 'Choose an option [1]: ').lower()
         if choice in ('0', 'n', 'no'):
             print('Saved. Run setup with --github-only whenever you want to start a workflow.')
             return
+        if choice == '4':
+            configure_timezone(repo)
+            continue
         if choice == '3':
             from image_setup import replace_photos
             replace_photos(repo)
@@ -439,6 +444,8 @@ def configure_github(session_file, manage=False):
             return
         repo = metadata['nameWithOwner']
         print(f'Target repository: https://github.com/{repo}')
+        if not configure_timezone(repo):
+            return
         print('Saving INSTA_SESSION automatically in the selected repository...')
         with session_file.open('rb') as session:
             result = run_gh(['secret', 'set', 'INSTA_SESSION', '--repo', 'github.com/' + repo], stdin=session, capture_output=True)

@@ -80,7 +80,8 @@ Follow the prompts in the same terminal:
 1. **GitHub CLI installs automatically** if missing. The wizard uses Winget, Homebrew, or a supported Linux package manager. If none is available, follow the installation link it prints.
 2. **Sign in** using GitHub's browser/device-code instructions. This browser authorization may be needed once.
 3. **Select your repository.** Choose an existing copy. If none are found, setup automatically creates a private template copy with an available name. Choose private visibility if you don't want your photos public. If template creation is unavailable, the wizard offers a fork instead.
-4. **Session saved automatically.** The wizard shows the destination and saves `INSTA_SESSION` as a repository secret.
+4. **Choose your timezone.** Pick a region or enter an IANA name such as `Asia/Kolkata`. Rotation due times and workflow summaries use it, including daylight-saving changes. This does not change the random interval.
+5. **Session saved automatically.** The wizard shows the destination and saves `INSTA_SESSION` as a repository secret.
 
 > [!IMPORTANT]
 > **Never upload or share `data/session.json`.** It contains your Instagram login session. Your Instagram password is not uploaded to GitHub.
@@ -157,6 +158,10 @@ gh workflow enable change-dp.yml --repo YOUR-NAME/YOUR-REPO
 ```
 
 </details>
+
+### Change your timezone later
+
+Run setup with `--github-only --manage`, select your repository, and choose **Change timezone**. The setting is stored as the `TIMEZONE` repository variable. Times default to UTC if none is set. GitHub’s cron remains UTC; only displayed times change.
 
 ## Troubleshooting
 
