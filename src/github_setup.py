@@ -341,7 +341,7 @@ def run_workflow(repo, mode):
         print(f'Check progress with: gh run list --repo {repo} --workflow change-dp.yml')
         return False
     print('Waiting for GitHub Actions. Press Ctrl+C to stop watching; the remote run will continue.')
-    watched = run_gh(['run', 'watch', run_id, '--repo', 'github.com/' + repo, '--exit-status', '--interval', '10'])
+    watched = run_gh(['run', 'watch', run_id, '--repo', 'github.com/' + repo, '--exit-status', '--interval', '3'])
     if watched.returncode:
         print('Workflow did not pass or could not be watched. Inspect it from this terminal:')
         print(f'gh run view {run_id} --repo {repo} --log-failed')
