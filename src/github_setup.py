@@ -9,8 +9,31 @@ import subprocess
 import sys
 
 
+USE_SAVED_GITHUB_LOGIN = False
+
+
+class GitHubAuthenticationExpired(ValueError):
+    pass
+
+
 def run_gh(args, **kwargs):
-    return subprocess.run(['gh', *args], env={**os.environ, 'GH_HOST': 'github.com'}, **kwargs)
+    environment = {**os.environ, 'GH_HOST': 'github.com'}
+    if USE_SAVED_GITHUB_LOGIN:
+        for key in ('GH_TOKEN', 'GITHUB_TOKEN'):
+            environment.pop(key, None)
+    return subprocess.run(['gh', *args], env=environment, **kwargs)
+
+
+def recover_github_login():
+    global USE_SAVED_GITHUB_LOGIN
+    print('GitHub login expired. Opening browser sign-in; your Instagram session is already saved.')
+    if os.getenv('GH_TOKEN') or os.getenv('GITHUB_TOKEN'):
+        print('An environment token may override gh login. This setup will use the saved browser login instead.')
+    # Child processes only: leave the user's shell and token values untouched.
+    USE_SAVED_GITHUB_LOGIN = True
+    result = run_gh(['auth', 'login', '--hostname', 'github.com', '--git-protocol', 'https', '--web'])
+    return result.returncode == 0
+
 
 
 def ensure_gh():
@@ -64,6 +87,8 @@ def api_json(endpoint):
         # Never print raw stderr, which may contain credentials or proxy URLs.
         error = result.stderr if isinstance(result.stderr, str) else ''
         status = re.search(r'HTTP (\d{3})', error)
+        if status and status.group(1) == '401':
+            raise GitHubAuthenticationExpired('GitHub authentication expired (HTTP 401).')
         if status:
             reason = {'401': 'GitHub authentication expired; run gh auth login.',
                       '403': 'GitHub denied access; check token scopes, organization access, or API limits.',
@@ -161,7 +186,19 @@ def create_repository(user, automatic=False):
 def select_repository():
     try:
         print('Finding your forks and template copies...')
-        user, matches = discover_repositories()
+        try:
+            user, matches = discover_repositories()
+        except GitHubAuthenticationExpired:
+            if not recover_github_login():
+                print('GitHub sign-in did not finish. Resume with --github-only; no Instagram login is needed.')
+                return None
+            print('Signed in. Retrying repository discovery...')
+            try:
+                user, matches = discover_repositories()
+            except GitHubAuthenticationExpired:
+                print('GitHub still rejected authentication after sign-in. No repository was created. '
+                      'Check account access, then resume with --github-only.')
+                return None
         if not matches:
             print('No existing copies found. Creating a private copy automatically...')
             return create_repository(user, automatic=True)

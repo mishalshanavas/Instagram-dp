@@ -166,6 +166,7 @@ gh workflow enable change-dp.yml --repo YOUR-NAME/YOUR-REPO
 | HTTP 429 / Too many requests | Stop repeated attempts. Check Instagram for prompts and wait before retrying on your usual network. There is no guaranteed cooldown. |
 | Session expired or login rejected | Resolve prompts in Instagram, then run full setup and save the new session secret. |
 | No repositories listed | Choose **Create a new repository**, or enter an existing repository manually. |
+| GitHub login expired / HTTP 401 | Setup opens browser sign-in and retries discovery once. It ignores overriding environment tokens for its child processes after recovery. If sign-in is interrupted, resume with `--github-only`. |
 | Secret upload failed | Check the selected GitHub account and repository admin permissions. Resume with `--github-only`. |
 | Workflow missing or differs from setup | Update the selected repository's project files on its default branch, then resume with `--github-only`. |
 | Workflow failed | Run the `gh run view … --log-failed` command printed by the wizard to see the failed step. |
