@@ -89,8 +89,8 @@ The walkthrough lives in separate pages so this README stays short.
 | [Architecture](Wiki/Architecture.md) | Components and data flow |
 | [Development](Wiki/Development.md) | Project layout and tests |
 
-These guides are included in ZIP downloads and template copies. The GitHub wiki
-is awaiting initial publication; the links above work now.
+Read the full [GitHub Wiki](https://github.com/mishalshanavas/Instagram-dp/wiki).
+The guide sources are also included in ZIP downloads and template copies.
 
 ## Before opening an issue
 
