@@ -4,22 +4,31 @@
 
 Download Python 3.11 or newer from [python.org/downloads](https://www.python.org/downloads/). Open the downloaded installer and finish its steps. Open a new Terminal window afterward.
 
-## 2. Download the project
+## 2. Open Terminal and check requirements
 
-Open the [template repository](https://github.com/mishalshanavas/Instagram-dp), select **Code → Download ZIP**, then double-click the downloaded ZIP to extract it. Open the folder containing `setup.py`.
-
-## 3. Open Terminal in that folder
-
-1. Open **Terminal** using Spotlight (Command + Space, type Terminal, press Enter).
-2. Type `cd `, including the space. Do not press Enter yet.
-3. Drag the extracted project folder from Finder into Terminal.
-4. Press Enter. Now run:
+Open **Terminal** using Spotlight (**Command + Space**, type Terminal, press Enter), then run:
 
 ```sh
 python3 --version
+git --version
 ```
 
-It must show 3.11 or newer.
+Python must be 3.11 or newer. If macOS prompts you to install command line developer tools when checking Git, complete that installation and retry. You can also use the ZIP fallback below if you do not want to install Git.
+
+## 3. Clone the project
+
+In Terminal, run:
+
+```sh
+git clone https://github.com/mishalshanavas/Instagram-dp.git
+cd Instagram-dp
+```
+
+This creates a project folder in your current directory. If that folder already exists, return to your existing installation or choose another parent directory.
+
+**ZIP fallback:** on the [repository page](https://github.com/mishalshanavas/Instagram-dp), select **Code → Download ZIP** and extract it. In Terminal, type `cd ` with a trailing space, drag the extracted folder containing `setup.py` from Finder into Terminal, and press Enter.
+
+Cloning downloads the setup program. The wizard still creates or selects your own GitHub copy for automation.
 
 ## 4. Start setup
 

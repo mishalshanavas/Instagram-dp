@@ -12,14 +12,26 @@ You need Python 3.11 or newer, pip, and the venv module. Install those through y
 
 ```sh
 sudo apt-get update
-sudo apt-get install python3 python3-venv python3-pip
+sudo apt-get install git python3 python3-venv python3-pip
 ```
 
 Check the version again afterward; older distributions may need a newer Python installation.
 
-## 2. Download and open the project
+## 2. Clone the project
 
-From the [template repository](https://github.com/mishalshanavas/Instagram-dp), choose **Code → Download ZIP**. Extract it. Open the folder containing `setup.py`, right-click an empty area, and select **Open in Terminal** if your file manager offers it. Otherwise use `cd` to enter that folder.
+Git downloads the project into a new `Instagram-dp` folder. Run these commands from the directory where you want to keep it:
+
+```sh
+git --version
+git clone https://github.com/mishalshanavas/Instagram-dp.git
+cd Instagram-dp
+```
+
+If Git is missing, install it through your distribution's package manager. The Debian/Ubuntu command above includes it. If `Instagram-dp` already exists, use that folder or choose another parent directory; do not delete an existing installation to repeat this step.
+
+Prefer a download? Choose **Code → Download ZIP** on the [repository page](https://github.com/mishalshanavas/Instagram-dp), extract it, and open a terminal in the folder containing `setup.py`.
+
+Cloning downloads the setup program. The wizard still creates or selects your own GitHub copy for automation.
 
 ## 3. Start setup
 

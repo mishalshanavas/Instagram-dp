@@ -29,7 +29,7 @@ The setup wizard handles:
 ## Get started
 
 You need **Python 3.11+**, a **GitHub account**, and an **Instagram account**.
-No Git commands or manual secret setup are required.
+The wizard handles repository creation and secret setup.
 
 **Choose your installation guide:**
 
@@ -37,16 +37,22 @@ No Git commands or manual secret setup are required.
 - **[macOS](Wiki/macOS.md)**
 - **[Linux / headless VM](Wiki/Linux.md)**
 
-Already have Python? Download **Code → Download ZIP**, extract it, and open a
-terminal in the folder containing `setup.py`:
+**Windows:** download **Code → Download ZIP**, extract it, and open PowerShell
+in the folder containing `setup.py`:
+
+```powershell
+py setup.py
+```
+
+**Linux / macOS:** with Python and Git installed, run:
 
 ```sh
-# Windows
-py setup.py
-
-# macOS / Linux
+git clone https://github.com/mishalshanavas/Instagram-dp.git
+cd Instagram-dp
 python3 setup.py
 ```
+
+The platform guides explain prerequisites and include a ZIP fallback.
 
 Then follow **[First setup](Wiki/First-setup.md)** for each prompt and its expected
 result. Dependencies and GitHub CLI install automatically where supported.
