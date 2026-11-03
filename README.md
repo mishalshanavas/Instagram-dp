@@ -2,7 +2,7 @@
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/downloads/)
 [![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20macOS%20%7C%20Linux-555)](#get-started)
-[![GitHub Actions](https://img.shields.io/badge/runs%20on-GitHub%20Actions-2088FF?logo=githubactions&logoColor=white)](docs/Scheduling.md)
+[![GitHub Actions](https://img.shields.io/badge/runs%20on-GitHub%20Actions-2088FF?logo=githubactions&logoColor=white)](Wiki/Scheduling.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 Automatically rotate your Instagram profile picture through a folder of photos.
@@ -33,9 +33,9 @@ No Git commands or manual secret setup are required.
 
 **Choose your installation guide:**
 
-- **[Windows](docs/Windows.md)**
-- **[macOS](docs/macOS.md)**
-- **[Linux / headless VM](docs/Linux.md)**
+- **[Windows](Wiki/Windows.md)**
+- **[macOS](Wiki/macOS.md)**
+- **[Linux / headless VM](Wiki/Linux.md)**
 
 Already have Python? Download **Code → Download ZIP**, extract it, and open a
 terminal in the folder containing `setup.py`:
@@ -48,7 +48,7 @@ py setup.py
 python3 setup.py
 ```
 
-Then follow **[First setup](docs/First-setup.md)** for each prompt and its expected
+Then follow **[First setup](Wiki/First-setup.md)** for each prompt and its expected
 result. Dependencies and GitHub CLI install automatically where supported.
 
 > [!IMPORTANT]
@@ -69,9 +69,9 @@ py setup.py --github-only --manage
 python3 setup.py --github-only --manage
 ```
 
-- **[Replace your photos](docs/Photos.md):** upload a complete collection; originals stay unchanged.
-- **[Understand the schedule](docs/Scheduling.md):** random 2–5 hour intervals, checked hourly. Timing is approximate.
-- **[Renew an expired session](docs/Account-safety.md):** run full setup again to reconnect Instagram.
+- **[Replace your photos](Wiki/Photos.md):** upload a complete collection; originals stay unchanged.
+- **[Understand the schedule](Wiki/Scheduling.md):** random 2–5 hour intervals, checked hourly. Timing is approximate.
+- **[Renew an expired session](Wiki/Account-safety.md):** run full setup again to reconnect Instagram.
 
 ## Documentation
 
@@ -79,20 +79,22 @@ The walkthrough lives in separate pages so this README stays short.
 
 | Guide | Covers |
 | --- | --- |
-| [Start here](docs/Home.md) | Recommended reading order |
-| [First setup](docs/First-setup.md) | Accounts, repository, timezone, photos, and first run |
-| [Photos](docs/Photos.md) | Formats, ordering, folder paths, and replacement |
-| [Scheduling](docs/Scheduling.md) | Due times, timezones, manual runs, and pausing |
-| [Troubleshooting](docs/Troubleshooting.md) | Login errors, failed updates, and GitHub access |
-| [Account safety](docs/Account-safety.md) | Sessions, credentials, and photo privacy |
-| [Development](docs/Development.md) | Project layout and tests |
+| [Start here](Wiki/Home.md) | Recommended reading order |
+| [First setup](Wiki/First-setup.md) | Accounts, repository, timezone, photos, and first run |
+| [Photos](Wiki/Photos.md) | Formats, ordering, folder paths, and replacement |
+| [Scheduling](Wiki/Scheduling.md) | Due times, timezones, manual runs, and pausing |
+| [Troubleshooting](Wiki/Troubleshooting.md) | Login errors, failed updates, and GitHub access |
+| [Account safety](Wiki/Account-safety.md) | Sessions, credentials, and photo privacy |
+| [Configuration](Wiki/Configuration.md) | Commands, secrets, environment, and state |
+| [Architecture](Wiki/Architecture.md) | Components and data flow |
+| [Development](Wiki/Development.md) | Project layout and tests |
 
 These guides are included in ZIP downloads and template copies. The GitHub wiki
 is awaiting initial publication; the links above work now.
 
 ## Before opening an issue
 
-Check [Troubleshooting](docs/Troubleshooting.md), then include your operating
+Check [Troubleshooting](Wiki/Troubleshooting.md), then include your operating
 system, Python version, and the failed step. Never include passwords, verification
 codes, cookies, or `data/session.json`.
 

@@ -10,19 +10,12 @@ BASE = 'https://github.com/mishalshanavas/Instagram-dp'
 
 
 def export_pages(destination):
-    for page in (ROOT / 'docs').glob('*.md'):
-        if page.stem == 'Wiki-publishing':
-            continue
+    for page in (ROOT / 'Wiki').glob('*.md'):
         text = page.read_text()
         text = text.replace('(../README.md)', '(' + BASE + '#readme)')
-        text = re.sub(r'\]\(([A-Za-z-]+)\.md(#[^)]*)?\)',
+        text = re.sub(r'\]\(([A-Za-z_-]+)\.md(#[^)]*)?\)',
                       lambda match: '](' + match.group(1) + (match.group(2) or '') + ')', text)
         (destination / page.name).write_text(text)
-    (destination / '_Sidebar.md').write_text(
-        '**Instagram DP**\n\n' + '\n'.join(f'- [{label}]({name})' for name, label in [
-            ('Home', 'Start here'), ('Windows', 'Windows'), ('macOS', 'macOS'), ('Linux', 'Linux / VM'),
-            ('First-setup', 'First setup'), ('Photos', 'Photos'), ('Scheduling', 'Schedule & timezone'),
-            ('Troubleshooting', 'Troubleshooting'), ('Account-safety', 'Account safety'), ('Development', 'Development')]) + '\n')
 
 
 def main():
