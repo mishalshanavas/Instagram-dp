@@ -9,6 +9,12 @@ Automatically rotate your Instagram profile picture through a folder of photos.
 Setup runs on your computer; scheduled changes run in your own GitHub repository.
 Your computer can stay off afterward.
 
+After each successful change, the next picture is scheduled **2–5 hours later**,
+with a randomly chosen interval. This spaces out update requests as a precaution
+against rate limits and automated-activity restrictions; it does **not** guarantee
+that Instagram will avoid flagging the account. GitHub checks hourly, so the
+actual change can happen later.
+
 ![Instagram profile picture rotation demo](https://github.com/user-attachments/assets/83b23108-116a-4a98-9d53-658ad9dec2a6)
 
 *Demo at 10× speed. Actual rotations happen hours apart.*

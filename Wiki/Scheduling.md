@@ -12,6 +12,14 @@ This is not an exact-time scheduler. Hourly checks round the interval up, and Gi
 
 `check` mode validates without changing the picture or advancing the image index. A manual `rotate` runs immediately and schedules a new interval after success.
 
+## Why use a random 2–5 hour interval?
+
+The interval spaces out profile-picture requests instead of updating repeatedly in a short period. Random selection also means every successful rotation does not request exactly the same delay.
+
+This is a conservative project setting intended to reduce frequent automated activity, not an Instagram-approved safe limit. The project has no evidence that this particular range or randomization prevents account flags. Instagram can still rate-limit requests, require verification, or block automated profile changes. If that happens, follow [Troubleshooting](Troubleshooting.md) rather than repeatedly retrying.
+
+The interval is currently set in the workflow as 7,200–18,000 seconds. The timezone menu changes displayed times, not this interval.
+
 ## Choose or change timezone
 
 First setup asks for your timezone. To change it later, run setup with `--github-only --manage`, select the repository, then **Change timezone**.
